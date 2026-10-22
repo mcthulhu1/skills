@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.9", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Linter tests
+        run: python -B -m unittest discover -s skills/rfc-first/scripts/tests -v
+      - name: Lint the example RFC
+        run: python -B skills/rfc-first/scripts/rfc_lint.py skills/rfc-first/examples/docs/rfc/INV-42-line-rounding.md
+      - name: Manifests, front matter and icon
+        run: python -B scripts/check_manifests.py

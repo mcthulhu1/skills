@@ -1,0 +1,17 @@
+{
+  "name": "mcthulhu1",
+  "owner": {
+    "name": "mcthulhu1",
+    "url": "https://github.com/mcthulhu1"
+  },
+  "description": "mcthulhu1's agent skills, as an installable plugin.",
+  "plugins": [
+    {
+      "name": "mcthulhu1-skills",
+      "source": "./",
+      "description": "Agent skills for disciplined engineering: rfc-first (requirement → verified facts → decision → plan → change → verification).",
+      "category": "engineering",
+      "keywords": ["engineering", "skills", "rfc", "requirements"]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "RFC-first: decisions and implementation"
+  short_description: "Prepare, review and maintain RFCs grounded in verified facts"
+  default_prompt: "Use $rfc-first: prepare or update the RFC for this task, verify the facts and list the decisions left to the owner."
