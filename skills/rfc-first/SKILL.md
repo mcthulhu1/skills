@@ -8,7 +8,7 @@ description: >-
   behavior, a direct instruction to make a specific edit without an RFC, or executing an already approved
   plan within its scope; the validate, implement and status modes still apply to an existing RFC.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   opencode/slash: "true"
 ---
 
@@ -17,7 +17,7 @@ metadata:
 Chain: `requirement → verified facts → decision → plan → change → verification`.
 This skill does not by itself authorize implementation, messages, Git writes or rollout. Follow the applicable global and project instructions; their prohibitions and any approval already given stay in force.
 
-Write the RFC body in the language the user works in, but keep the section headings and header field names of the [RFC template](references/rfc-template.md) in English: the linter recognizes them.
+Write the RFC body in the language the user works in. Take the section headings and header field names from the [RFC template](references/rfc-template.md) in English, unless the RFC storage has `rfc-lint.json`: then use the team's words from it. If the user wants headings in their language and the file is missing, prepare it as described in [rfc-lint-config.md](references/rfc-lint-config.md).
 
 ## 1. Pick the mode and the scale
 

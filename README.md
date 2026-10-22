@@ -23,7 +23,7 @@ requirement → verified facts → decision → plan → change → verification
 - **The scale fits the task**: a short fix gets a short record.
 - **A built-in linter** (`scripts/rfc_lint.py`, Python 3.9+, stdlib only) checks the structure of every RFC the agent writes.
 
-RFCs go to the project's RFC storage: a path from AGENTS.md / CLAUDE.md (`RFC storage: <path>`), an existing `docs/rfc/`, or `docs/rfc/` by default. The agent writes the RFC body in your language and keeps the section headings in English, so the linter works for every team.
+RFCs go to the project's RFC storage: a path from AGENTS.md / CLAUDE.md (`RFC storage: <path>`), an existing `docs/rfc/`, or `docs/rfc/` by default. The agent writes the RFC in your language. Section headings stay in English by default; to have them in your language too, the agent prepares `rfc-lint.json` with your headings in the RFC storage, and the linter accepts both ([format](skills/rfc-first/references/rfc-lint-config.md)).
 
 A finished synthetic example: [spec](skills/rfc-first/examples/docs/rfc/spec/INV-42.md) → [RFC with the decision and verification](skills/rfc-first/examples/docs/rfc/INV-42-line-rounding.md).
 
@@ -104,7 +104,7 @@ Python 3.9+ is needed for the linter (`py -3` or `python` on Windows).
 | skills CLI | 1.7.4 | `npx skills add <clone> -a opencode` | Verified 2026-10-22 on macOS and Linux |
 | OpenCode | 1.19.4 | Loading the skill placed by the skills CLI | Verified 2026-10-22 on macOS and Linux: `opencode debug skill` lists `rfc-first` |
 | GitHub Copilot | — | `copilot plugin marketplace add` | Documented |
-| Any client | — | Install from GitHub (`mcthulhu1/skills`) | Documented until the first release is published |
+| Install from GitHub | as above | `mcthulhu1/skills` instead of a local clone | Verified 2026-10-22 for Claude Code, Codex, Gemini CLI, skills CLI and OpenCode |
 
 ## Use
 
@@ -129,7 +129,7 @@ python3 -B scripts/check_manifests.py
 claude plugin validate . --strict
 ```
 
-CI (`.github/workflows/ci.yml`) runs the tests, the example lint and the manifest check on Linux, macOS and Windows with Python 3.9 and 3.13. When you change a skill, bump `version` in `.claude-plugin/plugin.json`: installed plugins update only when it changes.
+CI (`.github/workflows/ci.yml`) runs the tests, the example lint and the manifest check on Linux, macOS and Windows with Python 3.9 and 3.13. When you change a skill, bump `version` in `.claude-plugin/plugin.json` (installed plugins update only when it changes) and add a section for it to [CHANGELOG.md](CHANGELOG.md); the manifest check fails without one.
 
 ## License
 

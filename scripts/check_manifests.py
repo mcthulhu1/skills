@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checks the plugin manifests, skill front matter and icon (Python 3.9+, stdlib only).
+"""Checks the plugin manifests, skill front matter, icon and changelog entry (Python 3.9+, stdlib only).
 
 python3 scripts/check_manifests.py   # from the repository root; exit 1 on any problem
 """
@@ -61,6 +61,11 @@ def main():
     size = png_size(icon) if icon.is_file() else None
     if not size or size[0] != size[1] or not 512 <= size[0] <= 2048 or icon.stat().st_size > 2 * 1024 * 1024:
         problems.append('icon: must be a square PNG of 512-2048 px under 2 MB')
+    changelog = ROOT / 'CHANGELOG.md'
+    version = plugin.get('version', '')
+    if not changelog.is_file() or not re.search(r'^## \[' + re.escape(version) + r'\] - \d{4}-\d{2}-\d{2}$',
+                                                changelog.read_text(encoding='utf-8'), re.M):
+        problems.append(f'CHANGELOG.md: no "## [{version}] - YYYY-MM-DD" section for the plugin version')
     for p in problems:
         print(f'ERROR {p}')
     print('FAIL' if problems else 'OK')

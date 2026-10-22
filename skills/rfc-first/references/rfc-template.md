@@ -1,6 +1,6 @@
 # <ID, if any> — <the specific change>
 
-<!-- Adapt the structure to the task. Delete hints and sections you do not need. A short fix needs only the contract, facts, change and acceptance. Write the body in the user's language; keep headings and header field names in English. -->
+<!-- Adapt the structure to the task. Delete hints and sections you do not need. A short fix needs only the contract, facts, change and acceptance. Write the body in the user's language; keep headings and header field names in English, or use the team's words from rfc-lint.json in the RFC storage. -->
 
 Date/revision: <date and material revision>.
 Decision: <proposed / approved — which scope and source / superseded>.

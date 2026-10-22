@@ -2,6 +2,7 @@
 import contextlib
 import importlib.util
 import io
+import json
 import os
 import subprocess
 import sys
@@ -167,6 +168,112 @@ class LintTests(unittest.TestCase):
             self.assertEqual(linter.main(['lint', str(p)]), 1)
             self.assertEqual(linter.main(['lint', str(self.root / 'missing.md')]), 1)
         self.assertIn('cannot check the file', output.getvalue())
+
+
+# Team words in other languages, escaped to keep the sources ASCII.
+RU = {
+    'goal': '\u0426\u0435\u043b\u044c \u0438 \u043a\u043e\u043d\u0442\u0440\u0430\u043a\u0442',
+    'facts': '\u041f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u043d\u044b\u0435 \u0444\u0430\u043a\u0442\u044b',
+    'next': '\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433',
+    'decision': '\u0420\u0435\u0448\u0435\u043d\u0438\u0435',
+    'source': '\u0422\u0440\u0435\u0431\u043e\u0432\u0430\u043d\u0438\u044f',
+    'proof': '\u0414\u043e\u043a\u0430\u0437\u0430\u0442\u0435\u043b\u044c\u0441\u0442\u0432\u043e',
+    'hedge': '\u0432\u0435\u0440\u043e\u044f\u0442\u043d\u043e',
+}
+JA = {
+    'goal': '\u76ee\u7684',
+    'facts': '\u78ba\u8a8d\u6e08\u307f\u306e\u4e8b\u5b9f',
+    'status': '\u72b6\u614b',
+    'source': '\u8981\u4ef6',
+    'proof': '\u8a3c\u62e0',
+    'hedge': '\u304a\u305d\u3089\u304f',
+}
+RU_CONFIG = {
+    'sections': {'goal': [RU['goal']], 'facts': [RU['facts'].lower()], 'next_step': [RU['next']]},
+    'fields': {'status': [RU['decision']], 'source': [RU['source']]},
+    'proof_column': [RU['proof']],
+    'hedges': [RU['hedge']],
+}
+RU_DOC = (
+    '# X-1\n\n'
+    f'{RU["decision"]}: approved.\n'
+    f'{RU["source"]}: [spec](spec/X-1.md).\n\n'
+    f'## {RU["goal"]}\nFix.\n\n'
+    f'## {RU["facts"]}\n'
+    f'| ID | Fact | {RU["proof"]} |\n|---|---|---|\n'
+    '| F1 | Boundary | test:12 |\n')
+
+
+class TeamWordsTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(prefix='rfc-first-words-')
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        (self.root / 'spec').mkdir()
+        (self.root / 'spec' / 'X-1.md').write_text('# X-1\n', encoding='utf-8')
+
+    def doc(self, body, config=None):
+        if config is not None:
+            text = config if isinstance(config, str) else json.dumps(config, ensure_ascii=False)
+            (self.root / linter.CONFIG_NAME).write_text(text, encoding='utf-8')
+        p = self.root / 'X-1.md'
+        p.write_text(body, encoding='utf-8')
+        return p
+
+    def test_native_headings_without_config_are_an_error_with_a_hint(self):
+        errors, _ = linter.lint(self.doc(RU_DOC))
+        self.assertEqual(len([e for e in errors if 'missing section' in e]), 2)
+        self.assertIn(linter.CONFIG_NAME, errors[0])
+
+    def test_native_headings_fields_and_proof_column_pass_with_config_next_to_rfc(self):
+        self.assertEqual(linter.lint(self.doc(RU_DOC, RU_CONFIG)), ([], []))
+
+    def test_english_headings_still_pass_with_config(self):
+        self.assertEqual(linter.lint(self.doc(ENGLISH, RU_CONFIG)), ([], []))
+
+    def test_native_empty_proof_hedge_and_two_next_steps_are_warnings(self):
+        body = RU_DOC + f'| F2 | {RU["hedge"]} ok |  |\n\n## {RU["next"]}\n- a\n- b\n'
+        _, warns = linter.lint(self.doc(body, RU_CONFIG))
+        self.assertTrue(any('row without proof' in w for w in warns), warns)
+        self.assertTrue(any('hypothesis' in w for w in warns), warns)
+        self.assertTrue(any('several nearest' in w for w in warns), warns)
+
+    def test_cjk_words_and_full_width_colon_without_spaces(self):
+        config = {'sections': {'goal': [JA['goal']], 'facts': [JA['facts']]},
+                  'fields': {'status': [JA['status']], 'source': [JA['source']]},
+                  'proof_column': [JA['proof']], 'hedges': [JA['hedge']]}
+        body = (f'# X-1\n\n{JA["status"]}\uff1aok\n{JA["source"]}\uff1a`spec/ABSENT.md`\n\n'
+                f'## {JA["goal"]}\nx\n\n## {JA["facts"]}\n'
+                f'| ID | {JA["proof"]} |\n|---|---|\n| F1 |  |\n'
+                f'\u3053\u308c\u306f{JA["hedge"]}\u6b63\u3057\u3044\n')
+        errors, warns = linter.lint(self.doc(body, config))
+        self.assertEqual(errors, ['the spec link points to a missing file: spec/ABSENT.md'])
+        self.assertEqual(len(warns), 2, warns)  # empty proof, hedge inside a sentence with no spaces
+
+    def test_bad_config_is_an_error_naming_the_file_and_key(self):
+        cases = [('{"section": {}}', "unknown key 'section'"),
+                 ('{"sections": {"goals": ["x"]}}', "sections.'goals'"),
+                 ('{"hedges": "x"}', 'hedges must be a non-empty list'),
+                 ('{"hedges": [""]}', 'hedges must be a non-empty list'),
+                 ('{"hedges": [', 'bad config')]
+        for text, expected in cases:
+            with self.subTest(text=text):
+                errors, warns = linter.lint(self.doc(RU_DOC, text))
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn(linter.CONFIG_NAME, errors[0])
+                self.assertIn(expected, errors[0])
+
+    def test_cli_config_flag_applies_a_config_from_elsewhere(self):
+        other = self.root / 'elsewhere'
+        other.mkdir()
+        config = other / 'words.json'
+        config.write_text(json.dumps(RU_CONFIG), encoding='utf-8')
+        p = self.doc(RU_DOC)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(linter.main(['lint', str(p)]), 1)
+            self.assertEqual(linter.main(['lint', '--config', str(config), str(p)]), 0)
+            self.assertEqual(linter.main(['lint', str(p), '--config']), 2)
+        self.assertIn(f'OK {p}', output.getvalue())
 
 
 class OutputEncodingTests(unittest.TestCase):

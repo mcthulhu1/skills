@@ -1,0 +1,31 @@
+# Changelog
+
+All notable changes to this repository. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`.
+
+## [1.1.0] - 2026-10-22
+
+### Added
+
+- `rfc-first`: RFC headings in the team's language. Put `rfc-lint.json` next to the RFCs and the linter accepts the team's headings, header fields, proof column, next-step words and guess words in addition to the English ones. The format is in [`references/rfc-lint-config.md`](https://github.com/mcthulhu1/skills/blob/main/skills/rfc-first/references/rfc-lint-config.md).
+- `rfc_lint.py --config <path>` to use a file from another location.
+- Header fields accept the full-width colon (U+FF1A) used in Chinese and Japanese.
+
+### Changed
+
+- `SKILL.md`: the agent uses the team's headings when the file exists, and prepares the file for approval when the user asks for headings in their language.
+- A missing section error without a config now says that other languages need `rfc-lint.json`.
+- CI uses `actions/checkout@v7` and `actions/setup-python@v7` (Node 24).
+- README: installing from GitHub is verified for Claude Code, Codex, Gemini CLI, the skills CLI and OpenCode.
+
+## [1.0.0] - 2026-10-22
+
+### Added
+
+- `rfc-first` skill: a strict RFC-first process (`requirement → verified facts → decision → plan → change → verification`) with the new, update, validate, implement and status modes.
+- The verbatim spec in `spec/<ID>.md`, the RFC and spec templates, the review checklist, evidence rules and patterns, and a synthetic example (INV-42).
+- `rfc_lint.py`, a structural linter for RFCs (Python 3.9+, stdlib only), with tests.
+- Plugin and marketplace manifests for Claude Code, Codex and GitHub Copilot; install routes for Gemini CLI, OpenCode and other agents through the skills CLI.
+- CI on Linux, macOS and Windows with Python 3.9 and 3.13.
+
+[1.1.0]: https://github.com/mcthulhu1/skills/compare/ad6ed2e...v1.1.0
+[1.0.0]: https://github.com/mcthulhu1/skills/commit/ad6ed2e

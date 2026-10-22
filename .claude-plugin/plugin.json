@@ -1,6 +1,6 @@
 {
   "name": "mcthulhu1-skills",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Agent skills for disciplined engineering. rfc-first: a strict RFC-first process with verbatim requirements, facts with proof, owner approval before code and an honest status.",
   "icon": "./assets/icon.png",
   "author": {
