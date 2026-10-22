@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:  # manual run: gh workflow run CI -R mcthulhu1/skills
 
 permissions:
   contents: read
