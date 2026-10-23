@@ -4,8 +4,6 @@ import importlib.util
 import io
 import json
 import os
-import subprocess
-import sys
 from pathlib import Path
 import tempfile
 import unittest
@@ -278,18 +276,17 @@ class TeamWordsTests(unittest.TestCase):
 
 class OutputEncodingTests(unittest.TestCase):
     def test_non_ascii_messages_survive_a_pipe_with_cp1252_locale(self):
+        # A non-tty cp1252 stdout, as a pipe on English Windows; the linter must switch it to UTF-8.
         with tempfile.TemporaryDirectory(prefix='rfc-first-enc-') as tmp:
             p = Path(tmp) / 'RFC.md'
             p.write_text('# Fix\n\n## Verified facts\nIt probably works: \u0394t \u2192 \u2264 1 ms.\n', encoding='utf-8')
-            # Only what the child interpreter needs (SYSTEMROOT on Windows), not the whole environment.
-            env = {k: os.environ[k] for k in ('PATH', 'SYSTEMROOT') if k in os.environ}
-            env['PYTHONIOENCODING'] = 'cp1252'
-            result = subprocess.run([sys.executable, str(MODULE), str(p)], env=env,
-                                    capture_output=True, check=False)
-        self.assertEqual(result.returncode, 1, result.stderr.decode('utf-8', 'replace'))
-        self.assertNotIn(b'UnicodeEncodeError', result.stderr)
-        self.assertIn('\u0394t \u2192 \u2264 1 ms', result.stdout.decode('utf-8'))
-
+            raw = io.BytesIO()
+            pipe = io.TextIOWrapper(raw, encoding='cp1252')
+            with contextlib.redirect_stdout(pipe):
+                code = linter.main(['lint', str(p)])
+            pipe.flush()
+        self.assertEqual(code, 1)
+        self.assertIn('\u0394t \u2192 \u2264 1 ms', raw.getvalue().decode('utf-8'))
 
 if __name__ == '__main__':
     unittest.main()
