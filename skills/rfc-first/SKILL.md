@@ -8,7 +8,7 @@ description: >-
   behavior, a direct instruction to make a specific edit without an RFC, or executing an already approved
   plan within its scope; the validate, implement and status modes still apply to an existing RFC.
 metadata:
-  version: "1.1.3"
+  version: "1.1.4"
   opencode/slash: "true"
 ---
 
@@ -34,7 +34,7 @@ A new RFC is needed for every new substantive change the user has not approved y
 ## 2. Find the requirements and the RFC storage
 
 - Read the applicable AGENTS.md / CLAUDE.md and any RFC workflow of the project. Do not carry one project's paths, stack and constraints over to another.
-- Look for an existing RFC or spec for the ticket or topic and continue it; do not create a copy per conversation. Memory is an index of paths and decisions, not proof of the current state.
+- Look for an existing RFC or spec for the ticket or topic and continue it; do not create a copy per conversation. Earlier notes and answers point to paths and decisions; they are not proof of the current state.
 - Find the RFC storage (`<RFC_DIR>`) in this order:
   1. A path the user gave explicitly.
   2. The project instructions: a line such as `RFC storage: <path>` in AGENTS.md / CLAUDE.md, or another explicit RFC path there.
@@ -90,7 +90,7 @@ On Windows use `py -3` instead of `python3`, or `python` if that is missing. Pyt
 - Approval, implementation and verification are different statuses. Also tell apart code, target branch, artifact, deployed version/config and observed runtime/E2E behavior. Check only the levels the task needs. Reuse evidence while the relevant inputs and conditions have not changed.
 - Say what was not verified and why. A missing response record is not a successful E2E. Do not call the whole RFC done because one stage is ready.
 
-In your answer give the RFC link, the result of the stage and the nearest open question or check if work remains. Do not invent a next step for finished work. Update memory with a link only within the allowed memory rules.
+In your answer give the RFC link, the result of the stage and the nearest open question or check if work remains. Do not invent a next step for finished work.
 
 ## Integration
 

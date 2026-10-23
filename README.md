@@ -130,6 +130,14 @@ The agent also picks the skill up by itself for a new change that has not been a
 - "The RFC is approved, implement it" — implementation and checks within the approved scope.
 - "What is the status of PROJ-123?" — confirmed levels and what is not verified.
 
+## Troubleshooting
+
+- **The skill does not show up.** Start a new agent session after installing. In Claude Code check `claude plugin list`; with the skills CLI check that the skill is in your agent's skills directory. Install through one route per agent, or you get two copies.
+- **`python3` is not found (Windows).** Run the linter with `py -3` or `python`. Python 3.9+ is needed; the linter has no dependencies.
+- **The linter reports `missing section` for an RFC with headings in your language.** Add `rfc-lint.json` with your headings to the RFC storage ([format](skills/rfc-first/references/rfc-lint-config.md)).
+- **The agent stores RFCs in the wrong place.** Add `RFC storage: <path>` to your AGENTS.md or CLAUDE.md.
+- **Something else.** Open an issue: https://github.com/mcthulhu1/skills/issues. Report security problems privately, as described in [SECURITY.md](SECURITY.md).
+
 ## Development
 
 ```bash

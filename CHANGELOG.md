@@ -2,6 +2,17 @@
 
 All notable changes to this repository. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`.
 
+## [1.1.4] - 2026-10-23
+
+### Added
+
+- `SECURITY.md`: report vulnerabilities privately through GitHub.
+- README: Troubleshooting.
+
+### Changed
+
+- `rfc-first`: the skill no longer mentions the agent's memory. It neither reads nor updates it; earlier notes and answers are still treated as pointers, not proof.
+
 ## [1.1.3] - 2026-10-23
 
 ### Added
@@ -56,6 +67,7 @@ All notable changes to this repository. The format follows [Keep a Changelog](ht
 - Plugin and marketplace manifests for Claude Code, Codex and GitHub Copilot; install routes for Gemini CLI, OpenCode and other agents through the skills CLI.
 - CI on Linux, macOS and Windows with Python 3.9 and 3.13.
 
+[1.1.4]: https://github.com/mcthulhu1/skills/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/mcthulhu1/skills/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/mcthulhu1/skills/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/mcthulhu1/skills/compare/v1.1.0...v1.1.1
