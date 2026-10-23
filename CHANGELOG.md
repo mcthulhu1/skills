@@ -12,6 +12,8 @@ All notable changes to this repository. The format follows [Keep a Changelog](ht
 ### Changed
 
 - CI can be started by hand (`workflow_dispatch`), for when a push event is lost.
+- The encoding test starts the linter with `PATH` and `SYSTEMROOT` only, not the whole environment, so no environment value can reach the child process.
+- `assets/make_icon.py` takes the output path as its argument and no longer names the icon file.
 
 ### Removed
 

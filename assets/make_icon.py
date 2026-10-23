@@ -1,4 +1,4 @@
-"""Renders assets/icon.png: python3 assets/make_icon.py assets/icon.png (needs Pillow)."""
+"""Renders the plugin icon to the PNG path given as the only argument (needs Pillow)."""
 import sys
 from PIL import Image, ImageDraw
 S = 4096; k = S / 1024
