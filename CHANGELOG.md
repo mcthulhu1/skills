@@ -2,6 +2,12 @@
 
 All notable changes to this repository. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`.
 
+## [1.1.2] - 2026-10-23
+
+### Changed
+
+- Author, marketplace owner and copyright holder: Ilia Shiriaev instead of the GitHub login. The marketplace name `mcthulhu1` and install commands do not change.
+
 ## [1.1.1] - 2026-10-23
 
 ### Added
@@ -44,6 +50,7 @@ All notable changes to this repository. The format follows [Keep a Changelog](ht
 - Plugin and marketplace manifests for Claude Code, Codex and GitHub Copilot; install routes for Gemini CLI, OpenCode and other agents through the skills CLI.
 - CI on Linux, macOS and Windows with Python 3.9 and 3.13.
 
+[1.1.2]: https://github.com/mcthulhu1/skills/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/mcthulhu1/skills/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/mcthulhu1/skills/compare/ad6ed2e...v1.1.0
 [1.0.0]: https://github.com/mcthulhu1/skills/commit/ad6ed2e

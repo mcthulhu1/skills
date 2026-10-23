@@ -8,7 +8,7 @@ description: >-
   behavior, a direct instruction to make a specific edit without an RFC, or executing an already approved
   plan within its scope; the validate, implement and status modes still apply to an existing RFC.
 metadata:
-  version: "1.1.1"
+  version: "1.1.2"
   opencode/slash: "true"
 ---
 
