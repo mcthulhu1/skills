@@ -2,6 +2,12 @@
 
 All notable changes to this repository. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`.
 
+## [1.1.5] - 2026-10-23
+
+### Added
+
+- README: the skills.sh install count badge.
+
 ## [1.1.4] - 2026-10-23
 
 ### Added
@@ -67,6 +73,7 @@ All notable changes to this repository. The format follows [Keep a Changelog](ht
 - Plugin and marketplace manifests for Claude Code, Codex and GitHub Copilot; install routes for Gemini CLI, OpenCode and other agents through the skills CLI.
 - CI on Linux, macOS and Windows with Python 3.9 and 3.13.
 
+[1.1.5]: https://github.com/mcthulhu1/skills/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/mcthulhu1/skills/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/mcthulhu1/skills/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/mcthulhu1/skills/compare/v1.1.1...v1.1.2

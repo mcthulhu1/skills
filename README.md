@@ -2,6 +2,8 @@
 
 <img src="assets/icon.png" alt="" width="96" align="right">
 
+[![skills.sh](https://skills.sh/b/mcthulhu1/skills)](https://skills.sh/mcthulhu1/skills)
+
 Agent skills for Claude Code, Codex, OpenCode, Copilot, Gemini CLI, Cursor and any other agent that supports the [Agent Skills](https://agentskills.io) format.
 
 | Skill | What it does |
