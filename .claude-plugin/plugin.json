@@ -1,7 +1,7 @@
 {
   "name": "mcthulhu1-skills",
   "displayName": "RFC-first",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Agent skills for disciplined engineering. rfc-first: a strict RFC-first process with verbatim requirements, facts with proof, owner approval before code and an honest status.",
   "icon": "./assets/icon.png",
   "author": {
@@ -10,6 +10,9 @@
   },
   "homepage": "https://github.com/mcthulhu1/skills",
   "repository": "https://github.com/mcthulhu1/skills",
+  "documentationUrl": "https://github.com/mcthulhu1/skills#readme",
+  "supportUrl": "https://github.com/mcthulhu1/skills/issues",
+  "privacyPolicyUrl": "https://github.com/mcthulhu1/skills#what-it-runs-and-sends",
   "license": "MIT",
   "keywords": [
     "engineering",
