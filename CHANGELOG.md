@@ -2,11 +2,20 @@
 
 All notable changes to this repository. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`.
 
-## [Unreleased]
+## [1.1.1] - 2026-10-23
+
+### Added
+
+- README: "What it runs and sends" lists what the plugin runs, writes and sends, for users and for the plugin directory's review.
+- `displayName` "RFC-first" in `plugin.json`, the name shown in plugin lists.
 
 ### Changed
 
 - CI can be started by hand (`workflow_dispatch`), for when a push event is lost.
+
+### Removed
+
+- `.gitattributes`: the plugin directory refuses to validate a repository whose attributes rewrite file contents (`text`, `eol`). The scripts read files with universal newlines, so CRLF checkouts still work.
 
 ## [1.1.0] - 2026-10-22
 
@@ -33,6 +42,6 @@ All notable changes to this repository. The format follows [Keep a Changelog](ht
 - Plugin and marketplace manifests for Claude Code, Codex and GitHub Copilot; install routes for Gemini CLI, OpenCode and other agents through the skills CLI.
 - CI on Linux, macOS and Windows with Python 3.9 and 3.13.
 
-[Unreleased]: https://github.com/mcthulhu1/skills/compare/v1.1.0...HEAD
+[1.1.1]: https://github.com/mcthulhu1/skills/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/mcthulhu1/skills/compare/ad6ed2e...v1.1.0
 [1.0.0]: https://github.com/mcthulhu1/skills/commit/ad6ed2e

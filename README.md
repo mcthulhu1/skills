@@ -29,6 +29,15 @@ A finished synthetic example: [spec](skills/rfc-first/examples/docs/rfc/spec/INV
 
 > **Copy only what you may copy.** The verbatim spec is stored in your repository, so save there only requirements you are allowed to copy. If a license, policy or confidentiality rule forbids it, the agent stops and asks you for a permitted form: an approved excerpt, a summary marked as non-verbatim, or another location. Never store secrets or customers' personal data.
 
+## What it runs and sends
+
+The plugin has no hooks, MCP servers, commands or agents, and nothing runs when it is installed. It is one skill: Markdown instructions, templates and a linter that the agent uses during a session, with the permissions you give the agent.
+
+- **Runs**: `scripts/rfc_lint.py`, a local Python script (standard library only) that reads the RFC files you pass to it and prints findings. It makes no network requests and writes no files.
+- **Writes**: RFCs and verbatim specs as Markdown files in your project's RFC storage (`docs/rfc/` by default), and `rfc-lint.json` there if you approve one. The agent offers once to add an `RFC storage:` line to your AGENTS.md and does not add it without your answer.
+- **Asks the agent to check**: facts in your project the usual way, such as reading files, running your tests, or `git ls-remote` to see whether a remote branch is up to date. These are your agent's ordinary tools and follow its permission settings.
+- **Sends**: nothing. The plugin has no telemetry and no endpoints of its own.
+
 ## Install
 
 Pick one route per agent: installing the skill twice gives you two copies.
