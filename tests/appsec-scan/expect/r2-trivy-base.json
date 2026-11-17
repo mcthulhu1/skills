@@ -1,0 +1,48 @@
+{
+ "status": {
+  "sast": "ok",
+  "sast-base": "ok",
+  "sca-native": "ok",
+  "sca-native-base": "fail"
+ },
+ "status_contains": {
+  "sca-native-base": "fake base failure"
+ },
+ "sast": [
+  [
+   "new",
+   "app.js",
+   "added"
+  ],
+  [
+   "existing",
+   "app.js",
+   "keep"
+  ]
+ ],
+ "sast_fixed": [
+  [
+   "app.js",
+   "drop"
+  ]
+ ],
+ "sca_packages": [
+  [
+   "?",
+   "npm",
+   "node-fetch"
+  ],
+  [
+   "?",
+   "npm",
+   "lodash"
+  ]
+ ],
+ "sca_fixed_packages": [],
+ "report_contains": [
+  "comparison unavailable: base fail: trivy fs failed"
+ ],
+ "report_absent": [
+  "Fixed in the branch: "
+ ]
+}

@@ -4,14 +4,21 @@
     "name": "Ilia Shiriaev",
     "url": "https://github.com/mcthulhu1"
   },
-  "description": "mcthulhu1's agent skills, as an installable plugin.",
+  "description": "mcthulhu1's agent skills: one plugin per skill.",
   "plugins": [
     {
-      "name": "mcthulhu1-skills",
-      "source": "./",
-      "description": "Agent skills for disciplined engineering: rfc-first (requirement → verified facts → decision → plan → change → verification).",
+      "name": "rfc-first",
+      "source": "./plugins/rfc-first",
+      "description": "A strict RFC-first process: requirement → verified facts → decision → plan → change → verification.",
       "category": "engineering",
-      "keywords": ["engineering", "skills", "rfc", "requirements"]
+      "keywords": ["engineering", "rfc", "requirements"]
+    },
+    {
+      "name": "appsec-scan",
+      "source": "./plugins/appsec-scan",
+      "description": "Local pre-PR security scan: SAST, SCA and container images with opengrep and trivy, new findings vs your base branch, with evidence.",
+      "category": "security",
+      "keywords": ["security", "sast", "sca"]
     }
   ]
 }

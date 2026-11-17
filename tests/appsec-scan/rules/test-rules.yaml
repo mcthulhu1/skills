@@ -1,0 +1,32 @@
+# Test rules for the appsec-scan fixtures (MIT, written for these tests). CI runs the scanner only with these rules.
+rules:
+  - id: test-python-eval
+    languages: [python]
+    severity: ERROR
+    message: eval of a value
+    metadata: {cwe: ["CWE-95: Eval Injection"]}
+    pattern: eval(...)
+  - id: test-js-eval
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: eval of a value
+    metadata: {cwe: ["CWE-95: Eval Injection"]}
+    pattern: eval(...)
+  - id: test-java-runtime-exec
+    languages: [java]
+    severity: ERROR
+    message: command execution
+    metadata: {cwe: ["CWE-78: OS Command Injection"]}
+    pattern: Runtime.getRuntime().exec(...)
+  - id: test-go-exec-command
+    languages: [go]
+    severity: ERROR
+    message: command execution
+    metadata: {cwe: ["CWE-78: OS Command Injection"]}
+    pattern: exec.Command(...)
+  - id: test-rust-command-new
+    languages: [rust]
+    severity: ERROR
+    message: command execution
+    metadata: {cwe: ["CWE-78: OS Command Injection"]}
+    pattern: Command::new(...)

@@ -1,0 +1,14 @@
+{
+ "status": {
+  "sca": "fail"
+ },
+ "status_contains": {
+  "sca": "external symlink gradlew: gradle is not run"
+ },
+ "files_absent": [
+  "MARKER-gradlew"
+ ],
+ "report_contains": [
+  "`gradlew` -> `"
+ ]
+}

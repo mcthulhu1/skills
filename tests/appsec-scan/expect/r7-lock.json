@@ -1,0 +1,30 @@
+{
+ "status": {
+  "sca-native": "fail",
+  "sast": "ok"
+ },
+ "status_contains": {
+  "sca-native": "external symlink package-lock.json: trivy fs is not run"
+ },
+ "sast": [
+  [
+   "?",
+   "app.js",
+   "keep"
+  ],
+  [
+   "?",
+   "app.js",
+   "drop"
+  ]
+ ],
+ "log_absent": [
+  "trivy fs",
+  "Permission denied",
+  "permission denied"
+ ],
+ "report_contains": [
+  "`evil.py` -> `",
+  "excluded from the scan"
+ ]
+}

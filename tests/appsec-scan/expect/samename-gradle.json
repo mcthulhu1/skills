@@ -1,0 +1,4 @@
+{
+ "status": {"sca": "ok"},
+ "sca_ids": [["?", "org.apache.commons:commons-text", "CVE-2022-42889"], ["?", "org.yaml:snakeyaml", "CVE-2022-1471"]]
+}

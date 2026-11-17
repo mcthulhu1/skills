@@ -1,0 +1,7 @@
+{
+ "status": {"sast": "fail", "sast-base": "fail", "rules-python": "fail"},
+ "status_contains": {"sast": "rules missing for p/python", "sast-base": "rules missing for p/python"},
+ "sast_rules": [["?", "test-java-runtime-exec", "src/main/java/fixture/App.java", "keep"]],
+ "sast_fixed": [],
+ "report_contains": ["Comparison unavailable", "HEAD scan incomplete"]
+}

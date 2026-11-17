@@ -1,0 +1,12 @@
+{
+ "status": {
+  "docker": "skip"
+ },
+ "status_contains": {
+  "docker": "--image REF"
+ },
+ "log_absent": [
+  "docker build",
+  "trivy image"
+ ]
+}

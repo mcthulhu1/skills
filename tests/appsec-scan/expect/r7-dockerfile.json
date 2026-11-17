@@ -1,0 +1,6 @@
+{
+ "status": {"docker-build": "fail"},
+ "status_contains": {"docker-build": "external symlink Dockerfile: docker build is not run"},
+ "log_absent": ["docker build"],
+ "report_contains": ["`Dockerfile` -> `", "blocks the dockerfile part"]
+}

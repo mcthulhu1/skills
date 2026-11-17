@@ -1,0 +1,53 @@
+{
+ "status": {
+  "sast": "ok",
+  "sast-base": "ok",
+  "sca-native": "ok",
+  "sca-native-base": "ok"
+ },
+ "sast": [
+  [
+   "new",
+   "main.go",
+   "added"
+  ],
+  [
+   "existing",
+   "main.go",
+   "keep"
+  ]
+ ],
+ "sast_fixed": [
+  [
+   "main.go",
+   "drop"
+  ]
+ ],
+ "sca_packages": [
+  [
+   "new",
+   "gomod",
+   "gopkg.in/yaml.v2"
+  ],
+  [
+   "existing",
+   "gomod",
+   "golang.org/x/text"
+  ]
+ ],
+ "sca_ids": [
+  [
+   "new",
+   "gopkg.in/yaml.v2",
+   "CVE-2019-11254"
+  ],
+  [
+   "existing",
+   "golang.org/x/text",
+   "CVE-2020-14040"
+  ]
+ ],
+ "sca_fixed_packages": [
+  "github.com/dgrijalva/jwt-go"
+ ]
+}

@@ -1,0 +1,90 @@
+{
+ "status": {
+  "sast": "ok"
+ },
+ "sast": [
+  [
+   "?",
+   "dir with space/a b.py",
+   "keep"
+  ],
+  [
+   "?",
+   "dir with space/a b.py",
+   "drop"
+  ],
+  [
+   "?",
+   "quote'\"q.py",
+   "keep"
+  ],
+  [
+   "?",
+   "quote'\"q.py",
+   "drop"
+  ],
+  [
+   "?",
+   "$(touch MARKER-subst).py",
+   "keep"
+  ],
+  [
+   "?",
+   "$(touch MARKER-subst).py",
+   "drop"
+  ],
+  [
+   "?",
+   "new\nline.py",
+   "keep"
+  ],
+  [
+   "?",
+   "new\nline.py",
+   "drop"
+  ],
+  [
+   "?",
+   "-rf/-rf.py",
+   "keep"
+  ],
+  [
+   "?",
+   "-rf/-rf.py",
+   "drop"
+  ],
+  [
+   "?",
+   "--help/--help.py",
+   "keep"
+  ],
+  [
+   "?",
+   "--help/--help.py",
+   "drop"
+  ],
+  [
+   "?",
+   "-rf.py",
+   "keep"
+  ],
+  [
+   "?",
+   "-rf.py",
+   "drop"
+  ],
+  [
+   "?",
+   "--help.py",
+   "keep"
+  ],
+  [
+   "?",
+   "--help.py",
+   "drop"
+  ]
+ ],
+ "files_absent": [
+  "MARKER-subst"
+ ]
+}

@@ -1,0 +1,14 @@
+{
+ "status": {
+  "sca": "fail"
+ },
+ "status_contains": {
+  "sca": "unresolved dependencies: com.example.appsec.fixture:does-not-exist:1.0"
+ },
+ "report_contains": [
+  "comparison unavailable: HEAD fail"
+ ],
+ "report_absent": [
+  "Fixed in the branch:"
+ ]
+}

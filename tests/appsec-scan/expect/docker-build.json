@@ -1,0 +1,10 @@
+{
+ "status": {
+  "docker-dockerfile": "ok"
+ },
+ "report_contains": [
+  "| OS |",
+  "| library |",
+  "Full snapshot of the image"
+ ]
+}

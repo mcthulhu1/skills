@@ -1,0 +1,6 @@
+{
+ "status": {"sca-native": "fail", "sast": "ok"},
+ "status_contains": {"sca-native": "external symlink deps/requirements.txt: trivy fs is not run"},
+ "report_contains": ["`deps/requirements.txt` -> `", "blocks the lockfile part"],
+ "report_absent": ["jinja2", "unpinned-outside"]
+}

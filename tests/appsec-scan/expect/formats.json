@@ -1,0 +1,61 @@
+{
+ "status": {
+  "base": "skip",
+  "sca-native": "ok"
+ },
+ "sca_packages": [
+  [
+   "?",
+   "npm",
+   "lodash"
+  ],
+  [
+   "?",
+   "yarn",
+   "lodash"
+  ],
+  [
+   "?",
+   "pnpm",
+   "lodash"
+  ],
+  [
+   "?",
+   "pip",
+   "pyyaml"
+  ],
+  [
+   "?",
+   "poetry",
+   "pyyaml"
+  ],
+  [
+   "?",
+   "uv",
+   "pyyaml"
+  ],
+  [
+   "?",
+   "pipenv",
+   "pyyaml"
+  ]
+ ],
+ "sca_ids": [
+  [
+   "?",
+   "lodash",
+   "CVE-2021-23337"
+  ],
+  [
+   "?",
+   "pyyaml",
+   "CVE-2020-14343"
+  ]
+ ],
+ "report_contains": [
+  "`composer/composer.lock`: lock file format not scanned by appsec-scan"
+ ],
+ "report_absent": [
+  "trivy recognized no packages"
+ ]
+}

@@ -1,0 +1,8 @@
+{
+ "status": {
+  "docker-appsec-scan-fixture-does-not-exist-0": "fail"
+ },
+ "status_contains": {
+  "docker-appsec-scan-fixture-does-not-exist-0": "trivy image failed"
+ }
+}

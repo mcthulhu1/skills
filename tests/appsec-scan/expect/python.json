@@ -1,0 +1,62 @@
+{
+ "status": {
+  "sast": "ok",
+  "sast-base": "ok",
+  "sca-native": "ok",
+  "sca-native-base": "ok"
+ },
+ "sast": [
+  [
+   "new",
+   "app.py",
+   "added"
+  ],
+  [
+   "existing",
+   "app.py",
+   "keep"
+  ]
+ ],
+ "sast_fixed": [
+  [
+   "app.py",
+   "drop"
+  ]
+ ],
+ "sca_packages": [
+  [
+   "new",
+   "pip",
+   "requests"
+  ],
+  [
+   "existing",
+   "pip",
+   "jinja2"
+  ]
+ ],
+ "sca_ids": [
+  [
+   "new",
+   "requests",
+   "CVE-2018-18074"
+  ],
+  [
+   "existing",
+   "jinja2",
+   "CVE-2019-10906"
+  ]
+ ],
+ "sca_fixed_packages": [
+  "pyyaml"
+ ],
+ "sca_origin": [
+  [
+   "requests",
+   "direct/transitive: unknown"
+  ]
+ ],
+ "report_contains": [
+  "`requirements.txt`: 1 requirement(s) without a pinned `==` version are not checked"
+ ]
+}

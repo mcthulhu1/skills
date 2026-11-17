@@ -1,0 +1,38 @@
+{
+ "status": {
+  "base": "skip",
+  "sast": "ok",
+  "sast-base": "skip",
+  "sca-native": "ok",
+  "sca-native-base": "skip"
+ },
+ "sast": [
+  [
+   "?",
+   "main.go",
+   "added"
+  ],
+  [
+   "?",
+   "main.go",
+   "keep"
+  ]
+ ],
+ "sast_fixed": [],
+ "sca_packages": [
+  [
+   "?",
+   "gomod",
+   "gopkg.in/yaml.v2"
+  ],
+  [
+   "?",
+   "gomod",
+   "golang.org/x/text"
+  ]
+ ],
+ "sca_fixed_packages": [],
+ "report_absent": [
+  "Fixed in the branch"
+ ]
+}

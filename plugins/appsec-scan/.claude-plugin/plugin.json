@@ -1,0 +1,26 @@
+{
+  "name": "appsec-scan",
+  "displayName": "appsec-scan",
+  "version": "0.1.0",
+  "description": "Local pre-PR security scan with open-source scanners: SAST, SCA and container images, new findings vs your base branch, with evidence.",
+  "author": {
+    "name": "Ilia Shiriaev",
+    "url": "https://github.com/mcthulhu1"
+  },
+  "homepage": "https://github.com/mcthulhu1/skills/tree/main/plugins/appsec-scan",
+  "repository": "https://github.com/mcthulhu1/skills",
+  "documentationUrl": "https://github.com/mcthulhu1/skills/tree/main/plugins/appsec-scan#readme",
+  "supportUrl": "https://github.com/mcthulhu1/skills/issues",
+  "privacyPolicyUrl": "https://github.com/mcthulhu1/skills/tree/main/plugins/appsec-scan#what-it-runs-and-sends",
+  "license": "MIT",
+  "keywords": [
+    "security",
+    "sast",
+    "sca",
+    "opengrep",
+    "trivy"
+  ],
+  "skills": [
+    "./skills/appsec-scan"
+  ]
+}

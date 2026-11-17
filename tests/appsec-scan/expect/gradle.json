@@ -1,0 +1,61 @@
+{
+ "status": {
+  "sast": "ok",
+  "sast-base": "ok",
+  "sca": "ok",
+  "sca-base": "ok",
+  "sca-native": "skip"
+ },
+ "sast": [
+  [
+   "new",
+   "src/main/java/fixture/App.java",
+   "added"
+  ],
+  [
+   "existing",
+   "src/main/java/fixture/App.java",
+   "keep"
+  ]
+ ],
+ "sast_fixed": [
+  [
+   "src/main/java/fixture/App.java",
+   "drop"
+  ]
+ ],
+ "sca_packages": [
+  [
+   "new",
+   "jar",
+   "org.yaml:snakeyaml"
+  ],
+  [
+   "existing",
+   "jar",
+   "commons-collections:commons-collections"
+  ]
+ ],
+ "sca_ids": [
+  [
+   "new",
+   "org.yaml:snakeyaml",
+   "CVE-2022-1471"
+  ],
+  [
+   "existing",
+   "commons-collections:commons-collections",
+   "CVE-2015-7501"
+  ]
+ ],
+ "sca_fixed_packages": [
+  "org.apache.commons:commons-text",
+  "org.apache.commons:commons-lang3"
+ ],
+ "sca_origin": [
+  [
+   "org.yaml:snakeyaml",
+   "[root] org.yaml:snakeyaml:1.33 <- :"
+  ]
+ ]
+}

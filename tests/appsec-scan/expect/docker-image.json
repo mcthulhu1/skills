@@ -1,0 +1,15 @@
+{
+ "status": {
+  "docker-alpine-3.20.0": "ok"
+ },
+ "log_absent": [
+  "docker build",
+  "gradle",
+  "mvn "
+ ],
+ "report_contains": [
+  "## Image alpine:3.20.0",
+  "Full snapshot of the image, not compared with a base.",
+  "| OS |"
+ ]
+}

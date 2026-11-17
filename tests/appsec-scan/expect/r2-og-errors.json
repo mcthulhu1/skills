@@ -1,0 +1,14 @@
+{
+ "status": {
+  "sast": "fail",
+  "sast-base": "ok"
+ },
+ "status_contains": {
+  "sast": "opengrep reported 1 error(s): fake engine error"
+ },
+ "sast": [],
+ "sast_fixed": [],
+ "report_absent": [
+  "Fixed in the branch (in the base"
+ ]
+}

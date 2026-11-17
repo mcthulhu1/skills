@@ -1,0 +1,6 @@
+{
+ "status": {"sast": "ok", "sast-base": "ok"},
+ "status_absent": ["rules-"],
+ "sast_rules": [["existing", "test-java-runtime-exec", "src/main/java/fixture/App.java", "keep"]],
+ "sast_fixed_rules": [["test-python-eval", "app.py", "keep"], ["test-python-eval", "app.py", "drop"]]
+}

@@ -1,0 +1,53 @@
+{
+ "status": {
+  "sast": "ok",
+  "sast-base": "ok",
+  "sca-native": "ok",
+  "sca-native-base": "ok"
+ },
+ "sast": [
+  [
+   "new",
+   "src/main.rs",
+   "added"
+  ],
+  [
+   "existing",
+   "src/main.rs",
+   "keep"
+  ]
+ ],
+ "sast_fixed": [
+  [
+   "src/main.rs",
+   "drop"
+  ]
+ ],
+ "sca_packages": [
+  [
+   "new",
+   "cargo",
+   "regex"
+  ],
+  [
+   "existing",
+   "cargo",
+   "smallvec"
+  ]
+ ],
+ "sca_ids": [
+  [
+   "new",
+   "regex",
+   "CVE-2022-24713"
+  ],
+  [
+   "existing",
+   "smallvec",
+   "CVE-2021-25900"
+  ]
+ ],
+ "sca_fixed_packages": [
+  "time"
+ ]
+}

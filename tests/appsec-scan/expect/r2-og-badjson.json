@@ -1,0 +1,23 @@
+{
+ "status": {
+  "sast": "ok",
+  "sast-base": "fail"
+ },
+ "status_contains": {
+  "sast-base": "not valid JSON"
+ },
+ "sast": [
+  [
+   "?",
+   "app.js",
+   "keep"
+  ]
+ ],
+ "sast_fixed": [],
+ "report_contains": [
+  "Comparison unavailable: base fail"
+ ],
+ "report_absent": [
+  "Fixed in the branch (in the base"
+ ]
+}

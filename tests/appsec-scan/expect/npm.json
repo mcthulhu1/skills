@@ -1,0 +1,64 @@
+{
+ "status": {
+  "base": "ok",
+  "sast": "ok",
+  "sast-base": "ok",
+  "sca-native": "ok",
+  "sca-native-base": "ok"
+ },
+ "sast": [
+  [
+   "new",
+   "app.js",
+   "added"
+  ],
+  [
+   "existing",
+   "app.js",
+   "keep"
+  ]
+ ],
+ "sast_fixed": [
+  [
+   "app.js",
+   "drop"
+  ]
+ ],
+ "sca_packages": [
+  [
+   "new",
+   "npm",
+   "node-fetch"
+  ],
+  [
+   "existing",
+   "npm",
+   "lodash"
+  ]
+ ],
+ "sca_ids": [
+  [
+   "new",
+   "node-fetch",
+   "CVE-2022-0235"
+  ],
+  [
+   "existing",
+   "lodash",
+   "CVE-2021-23337"
+  ]
+ ],
+ "sca_fixed_packages": [
+  "minimist"
+ ],
+ "sca_origin": [
+  [
+   "node-fetch",
+   "node-fetch@2.6.0 <- fetch-helper@1.0.0"
+  ],
+  [
+   "lodash",
+   "direct dependency"
+  ]
+ ]
+}

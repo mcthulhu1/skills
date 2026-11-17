@@ -1,0 +1,33 @@
+{
+ "status": {
+  "sast": "ok",
+  "sast-base": "skip",
+  "sca": "ok",
+  "sca-base": "skip"
+ },
+ "sast": [
+  [
+   "?",
+   "src/main/java/fixture/App.java",
+   "added"
+  ],
+  [
+   "?",
+   "src/main/java/fixture/App.java",
+   "keep"
+  ]
+ ],
+ "sca_packages": [
+  [
+   "?",
+   "jar",
+   "org.yaml:snakeyaml"
+  ],
+  [
+   "?",
+   "jar",
+   "commons-collections:commons-collections"
+  ]
+ ],
+ "sca_fixed_packages": []
+}

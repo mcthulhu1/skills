@@ -1,0 +1,27 @@
+{
+  "name": "rfc-first",
+  "displayName": "RFC-first",
+  "version": "1.2.0",
+  "description": "A strict RFC-first process for coding agents: verbatim requirements, facts with proof, owner approval before code and an honest status.",
+  "icon": "./assets/icon.png",
+  "author": {
+    "name": "Ilia Shiriaev",
+    "url": "https://github.com/mcthulhu1"
+  },
+  "homepage": "https://github.com/mcthulhu1/skills/tree/main/plugins/rfc-first",
+  "repository": "https://github.com/mcthulhu1/skills",
+  "documentationUrl": "https://github.com/mcthulhu1/skills/tree/main/plugins/rfc-first#readme",
+  "supportUrl": "https://github.com/mcthulhu1/skills/issues",
+  "privacyPolicyUrl": "https://github.com/mcthulhu1/skills/tree/main/plugins/rfc-first#what-it-runs-and-sends",
+  "license": "MIT",
+  "keywords": [
+    "engineering",
+    "rfc",
+    "requirements",
+    "design-doc",
+    "code-review"
+  ],
+  "skills": [
+    "./skills/rfc-first"
+  ]
+}

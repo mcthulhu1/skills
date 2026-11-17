@@ -1,0 +1,89 @@
+// appsec-scan Gradle init script, applied with `-I`; it does not change the project.
+// appsecCopyDeps copies the external runtime dependencies of every Java project into -PappsecDepsDir
+// (jars/<project>/<group>/<module>/<version>/) and records:
+//   paths/<project>.tsv       group:name:version <TAB> first path from the project to the module ("who brought it in")
+//   unresolved/<project>.txt  dependencies and artifacts that did not resolve; scan.sh fails the SCA part if any exist
+
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
+
+def depsDirPath = startParameter.projectProperties.get('appsecDepsDir')
+
+allprojects { p ->
+    p.plugins.withId('java') {
+        p.tasks.register('appsecCopyDeps') {
+            doLast {
+                if (depsDirPath == null) {
+                    throw new GradleException('appsecDepsDir is not set')
+                }
+                def cfg = p.configurations.findByName('runtimeClasspath')
+                if (cfg == null) {
+                    return
+                }
+                def projectKey = p.path == ':' ? 'root' : p.path.substring(1).replace(':', '_')
+                def jarsDir = new File(depsDirPath, "jars/${projectKey}")
+                jarsDir.mkdirs()
+
+                // lenient: one broken artifact does not hide the others; every failure is recorded below
+                def view = cfg.incoming.artifactView {
+                    lenient(true)
+                    componentFilter { it instanceof ModuleComponentIdentifier }
+                }
+                def artifacts = view.artifacts
+                // one directory per component: g1:lib:1.0 and g2:lib:1.0 both ship lib-1.0.jar, and both are scanned
+                artifacts.each { a ->
+                    def c = a.id.componentIdentifier
+                    def dir = new File(jarsDir, "${c.group}/${c.module}/${c.version}")
+                    dir.mkdirs()
+                    def target = new File(dir, a.file.name)
+                    if (!target.exists()) {
+                        target.bytes = a.file.bytes
+                    }
+                }
+
+                def failures = []
+                artifacts.failures.each { failures << (it.message ?: it.class.name).readLines().first() }
+                def root = cfg.incoming.resolutionResult.root
+                cfg.incoming.resolutionResult.allDependencies.each { d ->
+                    if (d instanceof UnresolvedDependencyResult) {
+                        failures << "${d.requested.displayName}: ${(d.failure?.message ?: 'unresolved').readLines().first()}".toString()
+                    }
+                }
+                def unresolvedFile = new File(depsDirPath, "unresolved/${projectKey}.txt")
+                unresolvedFile.parentFile.mkdirs()
+                unresolvedFile.text = failures.unique().collect { it + '\n' }.join('')
+
+                // First path (BFS) from the project to every module: group:name:version <- ... <- project
+                def paths = [:]
+                def queue = [[root, [p.path]]]
+                def seen = [] as Set
+                while (!queue.isEmpty()) {
+                    def (node, path) = queue.remove(0)
+                    node.dependencies.each { d ->
+                        // constraint edges (BOM/platform) do not show who actually brought the module in
+                        if (d instanceof ResolvedDependencyResult && !d.constraint) {
+                            def sel = d.selected
+                            def mv = sel.moduleVersion
+                            if (mv != null && !(sel.id instanceof ProjectComponentIdentifier)) {
+                                def key = "${mv.group}:${mv.name}:${mv.version}".toString()
+                                if (!paths.containsKey(key)) {
+                                    paths[key] = ([d.requested.displayName] + path.reverse()).join(' <- ')
+                                }
+                            }
+                            def sid = sel.id.displayName
+                            if (seen.add(sid)) {
+                                def label = mv != null ? "${mv.group}:${mv.name}:${mv.version}".toString() : sid
+                                queue.add([sel, path + [label]])
+                            }
+                        }
+                    }
+                }
+                def pathsFile = new File(depsDirPath, "paths/${projectKey}.tsv")
+                pathsFile.parentFile.mkdirs()
+                pathsFile.text = paths.collect { k, v -> "${k}\t${v}\n" }.join('')
+            }
+        }
+    }
+}

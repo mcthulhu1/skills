@@ -1,0 +1,23 @@
+{
+ "status": {
+  "sast": "fail",
+  "sast-base": "ok"
+ },
+ "status_contains": {
+  "sast": "opengrep exited with 2"
+ },
+ "sast": [
+  [
+   "?",
+   "app.js",
+   "keep"
+  ]
+ ],
+ "sast_fixed": [],
+ "report_contains": [
+  "Comparison unavailable: HEAD fail"
+ ],
+ "report_absent": [
+  "Fixed in the branch (in the base"
+ ]
+}
