@@ -33,7 +33,7 @@ Install adds one skill: instructions, a bash script and two Python helpers (stan
 
 Platforms: macOS (arm64, x86_64) and Linux (glibc or musl, x86_64, aarch64). Windows: through WSL. The script installs nothing with a package manager: a missing tool fails only the part that needs it, with the install command.
 
-opengrep is downloaded from its GitHub release into the cache and installed only after `cosign verify-blob` accepts its signature from the exact opengrep release workflow (`.github/workflows/rolling-release.yml@refs/heads/release-<tag>`, issuer `https://token.actions.githubusercontent.com`). The checked sha256 is recorded, and a binary that does not match it is never run.
+opengrep is downloaded from its GitHub release into the cache and installed only after `cosign verify-blob` accepts its signature from the opengrep release workflow (`.github/workflows/rolling-release.yml` on `refs/heads/release-<tag>` for 1.x or `refs/heads/main` for 2.x, issuer `https://token.actions.githubusercontent.com`) run on exactly the commit the release tag points to. The checked sha256 is recorded, and a binary that does not match it is never run.
 
 ### Rules
 
@@ -122,10 +122,10 @@ The agent runs `scan.sh`, reads the report, opens the code of every new SAST fin
 You can also run the script yourself:
 
 ```bash
-bash ~/.claude/plugins/cache/mcthulhu1/appsec-scan/0.1.0/skills/appsec-scan/scan.sh . --help
+bash ~/.claude/plugins/cache/mcthulhu1/appsec-scan/0.1.1/skills/appsec-scan/scan.sh . --help
 ```
 
-That is the Claude Code path; Codex uses `~/.codex/plugins/cache/mcthulhu1/appsec-scan/0.1.0/`, the skills CLI `.agents/skills/appsec-scan/` in your project. The script prints `REPORT=<path>/report.md` at the end.
+That is the Claude Code path; Codex uses `~/.codex/plugins/cache/mcthulhu1/appsec-scan/0.1.1/`, the skills CLI `.agents/skills/appsec-scan/` in your project. The script prints `REPORT=<path>/report.md` at the end.
 
 ## Limitations
 

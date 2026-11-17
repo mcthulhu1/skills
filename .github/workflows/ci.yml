@@ -120,7 +120,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # ubuntu-24.04: actions/setup-python has no Python 3.9 for ubuntu-latest (26.04)
+        os: [ubuntu-24.04, macos-latest, windows-latest]
         python: ["3.9", "3.13"]
     runs-on: ${{ matrix.os }}
     steps:

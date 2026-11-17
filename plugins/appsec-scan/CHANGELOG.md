@@ -2,6 +2,13 @@
 
 All notable changes to the `appsec-scan` plugin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`. Releases are tagged `appsec-scan-vX.Y.Z`.
 
+## [0.1.1] - 2026-11-17
+
+### Fixed
+
+- opengrep 2.x installs again. Since 2.0.0 opengrep signs releases from the workflow on `main`, not on a `release-<tag>` branch, so 0.1.0 rejected the signature and left SAST without opengrep. The signature is now accepted from either branch and must come from a workflow run on exactly the commit the release tag points to (`cosign --certificate-github-workflow-sha`); the commit is read from the GitHub API.
+- Linux: opengrep 2.x ships one static binary (`opengrep_linux_x86`, `opengrep_linux_aarch64`) instead of separate glibc and musl builds; the asset is chosen by the release version.
+
 ## [0.1.0] - 2026-11-09
 
 ### Added

@@ -174,14 +174,16 @@ helper meta "$RUN/meta.json" REPO "$REPO" NAME "$NAME" BRANCH "$BRANCH" HEAD_SHA
     || { echo "writing meta.json failed" >&2; exit 2; }
 
 # ------------------------------------------------------------------ 2. Tools and rules
-platform_asset() {
-    local libc="many"
+platform_asset() {  # platform_asset TAG: 1.x ships glibc and musl Linux builds, 2.x one static Linux binary
+    local libc="many" arch
     case "$(uname -s)/$(uname -m)" in
         Darwin/arm64) echo opengrep_osx_arm64 ;;
         Darwin/x86_64) echo opengrep_osx_x86 ;;
         Linux/x86_64|Linux/amd64|Linux/aarch64|Linux/arm64)
+            case "$(uname -m)" in x86_64|amd64) arch=x86 ;; *) arch=aarch64 ;; esac
+            if helper version-ge "$1" v2.0.0; then echo "opengrep_linux_$arch"; return; fi
             if ldd --version 2>&1 | grep -qi musl || ls /lib/ld-musl-* >/dev/null 2>&1; then libc="musl"; fi
-            case "$(uname -m)" in x86_64|amd64) echo "opengrep_${libc}linux_x86" ;; *) echo "opengrep_${libc}linux_aarch64" ;; esac ;;
+            echo "opengrep_${libc}linux_$arch" ;;
         *) return 1 ;;
     esac
 }
@@ -226,8 +228,8 @@ acquire_lock() {
 release_lock() { [[ $HOLD_LOCK -eq 1 ]] && rm -rf "$CACHE/opengrep.lock"; HOLD_LOCK=0; }
 
 update_opengrep() {
-    local asset tag tmp base f identity sha
-    if ! asset="$(platform_asset)"; then
+    local asset tag commit tmp base f identity sha
+    if ! platform_asset v0.0.0 >/dev/null; then
         status tools-opengrep fail "unsupported platform $(uname -s)/$(uname -m)"
         return
     fi
@@ -255,6 +257,14 @@ update_opengrep() {
         status tools-opengrep ok "release $tag (cached, sha256 matches)"
         return
     fi
+    asset="$(platform_asset "$tag")"
+    # The commit the tag points to: the signature must come from a workflow run on exactly that commit.
+    if ! fetch "https://api.github.com/repos/opengrep/opengrep/commits/$tag" "$tmp/commit.json" 30 \
+            || ! commit="$(helper get "$tmp/commit.json" sha)" || [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]]; then
+        release_lock
+        status tools-opengrep fail "cannot resolve the commit of $tag$(cached_note)"
+        return
+    fi
     base="https://github.com/opengrep/opengrep/releases/download/$tag"
     for f in "$asset" "$asset.cert" "$asset.sig"; do
         if ! fetch "$base/$f" "$tmp/$f" 300; then
@@ -264,11 +274,13 @@ update_opengrep() {
         fi
     done
     sha="$(sha256 "$tmp/$asset")"
-    identity="^https://github\\.com/opengrep/opengrep/\\.github/workflows/rolling-release\\.yml@refs/heads/release-${tag//./\\.}\$"
+    # 1.x releases are built on release-<tag> branches, 2.x on main; the workflow commit binds either to the tag.
+    identity="^https://github\\.com/opengrep/opengrep/\\.github/workflows/rolling-release\\.yml@refs/heads/(release-${tag//./\\.}|main)\$"
     if ! run cosign verify-blob --certificate "$tmp/$asset.cert" --signature "$tmp/$asset.sig" \
-            --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$OPENGREP_ISSUER" "$tmp/$asset"; then
+            --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$OPENGREP_ISSUER" \
+            --certificate-github-workflow-sha "$commit" "$tmp/$asset"; then
         release_lock
-        status tools-opengrep fail "signature of $tag did not verify (expected identity $identity, issuer $OPENGREP_ISSUER); not installed$(cached_note)"
+        status tools-opengrep fail "signature of $tag did not verify (expected identity $identity, issuer $OPENGREP_ISSUER, workflow commit $commit); not installed$(cached_note)"
         return
     fi
     chmod 755 "$tmp/$asset"

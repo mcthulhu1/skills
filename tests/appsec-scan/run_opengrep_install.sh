@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Tests of the verified opengrep install (R1): bash tests/appsec-scan/run_opengrep_install.sh
-# Downloads two real opengrep releases once, then serves them through a curl shim to simulate a wrong signing
-# identity, a tampered signature, a corrupted cache, an interrupted download and two parallel updates.
+# Downloads three real opengrep releases (two 1.x signed on release-<tag> branches, one 2.x signed on main) and the
+# commits of their tags once, then serves them through a curl shim to simulate a wrong signing identity, a signature
+# from another commit, an unresolved commit, a tampered signature, a corrupted cache, an interrupted download and two
+# parallel updates.
 # Needs git, python3, curl, cosign (and network to github.com and Sigstore for the real downloads and cosign).
 set -uo pipefail
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -11,6 +13,7 @@ WORK="$(mktemp -d "${TMPDIR:-/tmp}/appsec-og.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 NEW=v1.33.1
 OLD=v1.33.0
+V2=v2.0.0  # signed by the workflow on main, not on a release branch
 REAL_CURL="$(command -v curl)"
 
 case "$(uname -s)/$(uname -m)" in
@@ -21,17 +24,25 @@ case "$(uname -s)/$(uname -m)" in
     *) echo "unsupported platform"; exit 2 ;;
 esac
 if ldd --version 2>&1 | grep -qi musl; then ASSET=${ASSET/manylinux/musllinux}; OTHER=${OTHER/manylinux/musllinux}; fi
+ASSET2=${ASSET/manylinux/linux}; ASSET2=${ASSET2/musllinux/linux}  # 2.x: one static Linux binary
 
 DL="$WORK/dl"
-mkdir -p "$DL/$NEW" "$DL/$OLD"
+mkdir -p "$DL/$NEW" "$DL/$OLD" "$DL/$V2"
 for f in "$ASSET" "$ASSET.cert" "$ASSET.sig" "$OTHER.sig"; do
     "$REAL_CURL" -fsSL -o "$DL/$NEW/$f" "https://github.com/opengrep/opengrep/releases/download/$NEW/$f" || { echo "download $NEW/$f failed"; exit 2; }
 done
 for f in "$ASSET" "$ASSET.cert" "$ASSET.sig"; do
     "$REAL_CURL" -fsSL -o "$DL/$OLD/$f" "https://github.com/opengrep/opengrep/releases/download/$OLD/$f" || { echo "download $OLD/$f failed"; exit 2; }
 done
+for f in "$ASSET2" "$ASSET2.cert" "$ASSET2.sig"; do
+    "$REAL_CURL" -fsSL -o "$DL/$V2/$f" "https://github.com/opengrep/opengrep/releases/download/$V2/$f" || { echo "download $V2/$f failed"; exit 2; }
+done
+for t in "$NEW" "$OLD" "$V2"; do
+    "$REAL_CURL" -fsSL -o "$DL/$t/commit.json" "https://api.github.com/repos/opengrep/opengrep/commits/$t" || { echo "commit of $t failed"; exit 2; }
+done
 
-# curl shim: serves $SERVE/<tag>/<file> for release downloads and {"tag_name": $TAG} for the latest release.
+# curl shim: serves $SERVE/<tag>/<file> for release downloads, $SERVE/<tag>/commit.json for the commit of a tag
+# and {"tag_name": $TAG} for the latest release.
 # SHIM_FAIL=<file>: writes half of that file, then fails (interrupted download). SHIM_SLOW=<seconds> per file.
 mkdir -p "$WORK/shim"
 cat > "$WORK/shim/curl" <<'EOF'
@@ -41,6 +52,10 @@ while [[ $# -gt 0 ]]; do case "$1" in -o) out="$2"; shift ;; -m|--proto) shift ;
 printf '%s\n' "$url" >> "$SHIM_LOG"
 case "$url" in
     https://api.github.com/repos/opengrep/opengrep/releases/latest) printf '{"tag_name": "%s"}' "$TAG" > "$out" ;;
+    https://api.github.com/repos/opengrep/opengrep/commits/*)
+        src="$SERVE/${url##*/}/commit.json"
+        [[ -f "$src" ]] || exit 22
+        cp "$src" "$out" ;;
     https://github.com/opengrep/opengrep/releases/download/*)
         rest=${url#https://github.com/opengrep/opengrep/releases/download/}
         file=${rest#*/}
@@ -89,13 +104,33 @@ consistent "$X" "$NEW" && ok "tag and sha256 recorded" || bad "record does not m
 
 echo "CASE wrong signing identity (the $OLD release served as $NEW)"
 X="$WORK/x-identity"; mkdir -p "$WORK/serve-identity/$NEW"; cp "$DL/$OLD/"* "$WORK/serve-identity/$NEW/"
+cp "$DL/$NEW/commit.json" "$WORK/serve-identity/$NEW/"
 run="$(scan "$X" "$WORK/serve-identity" "$NEW")"
 [[ "$(state "$run" tools-opengrep)" == fail*"did not verify"* ]] && ok "rejected" || bad "identity: $(state "$run" tools-opengrep)"
 [[ ! -e "$X/appsec-scan/bin/opengrep-$NEW" && ! -e "$X/appsec-scan/bin/opengrep.current" ]] && ok "nothing installed" || bad "a binary was installed"
 [[ "$(state "$run" sast)" == fail*"not installed"* ]] && ok "sast not run" || bad "sast: $(state "$run" sast)"
 
+echo "CASE release signed on main ($V2)"
+X="$WORK/x-v2"; run="$(scan "$X" "$DL" "$V2")"
+[[ "$(state "$run" tools-opengrep)" == ok*"installed, cosign signature verified"* ]] && ok "installed" || bad "install: $(state "$run" tools-opengrep)"
+consistent "$X" "$V2" && ok "tag and sha256 recorded" || bad "record does not match the binary"
+[[ "$(state "$run" sast)" == ok* ]] && ok "sast ran" || bad "sast: $(state "$run" sast)"
+
+echo "CASE signature from another commit (the commit of $OLD given for $NEW)"
+X="$WORK/x-commit"; mkdir -p "$WORK/serve-commit/$NEW"; cp "$DL/$NEW/"* "$WORK/serve-commit/$NEW/"
+cp "$DL/$OLD/commit.json" "$WORK/serve-commit/$NEW/"
+run="$(scan "$X" "$WORK/serve-commit" "$NEW")"
+[[ "$(state "$run" tools-opengrep)" == fail*"did not verify"* ]] && ok "rejected" || bad "commit: $(state "$run" tools-opengrep)"
+[[ ! -e "$X/appsec-scan/bin/opengrep-$NEW" && ! -e "$X/appsec-scan/bin/opengrep.current" ]] && ok "nothing installed" || bad "a binary was installed"
+
+echo "CASE commit of the tag not resolved"
+X="$WORK/x-nocommit"; mkdir -p "$WORK/serve-nocommit/$NEW"; cp "$DL/$NEW/$ASSET"* "$WORK/serve-nocommit/$NEW/"
+run="$(scan "$X" "$WORK/serve-nocommit" "$NEW")"
+[[ "$(state "$run" tools-opengrep)" == fail*"cannot resolve the commit of $NEW"* ]] && ok "fails" || bad "no commit: $(state "$run" tools-opengrep)"
+[[ ! -e "$X/appsec-scan/bin/opengrep-$NEW" ]] && ok "nothing installed" || bad "a binary was installed"
+
 echo "CASE tampered signature (the signature of another asset)"
-X="$WORK/x-sig"; mkdir -p "$WORK/serve-sig/$NEW"; cp "$DL/$NEW/$ASSET" "$DL/$NEW/$ASSET.cert" "$WORK/serve-sig/$NEW/"
+X="$WORK/x-sig"; mkdir -p "$WORK/serve-sig/$NEW"; cp "$DL/$NEW/$ASSET" "$DL/$NEW/$ASSET.cert" "$DL/$NEW/commit.json" "$WORK/serve-sig/$NEW/"
 cp "$DL/$NEW/$OTHER.sig" "$WORK/serve-sig/$NEW/$ASSET.sig"
 run="$(scan "$X" "$WORK/serve-sig" "$NEW")"
 [[ "$(state "$run" tools-opengrep)" == fail*"did not verify"* ]] && ok "rejected" || bad "signature: $(state "$run" tools-opengrep)"
@@ -109,13 +144,13 @@ run="$(scan "$X" "$DL" "$NEW" --no-update)"
 [[ ! -e "$WORK/MARKER-corrupt" ]] && ok "the corrupted binary did not run" || bad "the corrupted binary ran"
 
 echo "CASE interrupted download keeps the installed binary"
-X="$WORK/x-interrupt"; cp -R "$WORK/x-good" "$X"; mkdir -p "$WORK/serve-int/v9.9.9"; cp "$DL/$NEW/"* "$WORK/serve-int/v9.9.9/"
+X="$WORK/x-interrupt"; cp -R "$WORK/x-good" "$X"; mkdir -p "$WORK/serve-int/v1.99.9"; cp "$DL/$NEW/"* "$WORK/serve-int/v1.99.9/"
 before="$(sha "$X/appsec-scan/bin/opengrep-$NEW")"
-run="$(SHIM_FAIL="$ASSET" scan "$X" "$WORK/serve-int" v9.9.9)"
+run="$(SHIM_FAIL="$ASSET" scan "$X" "$WORK/serve-int" v1.99.9)"
 [[ "$(state "$run" tools-opengrep)" == fail*"download of $ASSET failed"*"using the verified cached $NEW"* ]] && ok "update failed, cached binary kept" \
     || bad "interrupt: $(state "$run" tools-opengrep)"
 consistent "$X" "$NEW" && [[ "$(sha "$X/appsec-scan/bin/opengrep-$NEW")" == "$before" ]] && ok "installed binary unchanged" || bad "installed binary changed"
-[[ ! -e "$X/appsec-scan/bin/opengrep-v9.9.9" ]] && ok "no partial binary" || bad "partial binary installed"
+[[ ! -e "$X/appsec-scan/bin/opengrep-v1.99.9" ]] && ok "no partial binary" || bad "partial binary installed"
 [[ "$(state "$run" sast)" == ok* ]] && ok "sast ran with the cached binary" || bad "sast: $(state "$run" sast)"
 
 echo "CASE two parallel updates"
