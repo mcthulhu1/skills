@@ -40,6 +40,14 @@ Code read at: `<repo>` `<commit>` (= remote per `git ls-remote`, <date>); enviro
 
 <Do not add questions, interpretations or decisions for the sake of form. If a decision is superseded, show the current one and link it to the previous one.>
 
+## Changes since approval
+
+<Only after a material change to an approved RFC (scope, contract, risk or budget); remove the section otherwise. One row per change; ask the owner only about these rows, see the [approval brief](approval-brief.md).>
+
+| Approved baseline | What changed | Affected contract and checks | Decision needed | Work that continues |
+|---|---|---|---|---|
+| <D-n, date> | <new or changed requirement, or a refuted fact> | <items, files, tests> | <the open question> | <independent work that does not wait> |
+
 ## Acceptance and implementation plan
 
 | Requirement item | Change/stage | Check and expected result | Status and proof |

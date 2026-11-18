@@ -6,6 +6,8 @@
 - **SCA** with [trivy](https://trivy.dev): the real Gradle or Maven runtime classpath (the project is built), including jars declared as files (`files('libs/x.jar')`), and lock files: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `requirements*.txt`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `go.mod`, `Cargo.lock`. Nothing is installed with npm or pip.
 - **New vs existing**: the same scans run on the merge-base of your base branch (`git archive`, your working tree is not touched). Every SAST and SCA finding is `new`, `existing` or `?` when the comparison is not possible, and the report lists what the branch fixed.
 - **Where it comes from**: for Gradle and Maven, the path from your project to each vulnerable jar; for lock files, the path from the dependency graph when the lock file has one.
+- **What to change**: one row per direct dependency, new findings first, with the version that fixes all of its CVEs: "upgrade X to >= 2.0", or for a transitive package "upgrade Y to a version that brings X >= 2.6.7, or pin X". The skill does not guess a safe version of the parent.
+- **Only the parts you need**: `--parts sast` skips the build and trivy, `--parts sca` skips opengrep and the rules, `--parts image --image REF` scans only the image. A part you did not request is reported as not requested, never as clean.
 - **Container images**, on request: `--image REF` scans an image you already have, `--docker-build` builds your Dockerfiles first. An image is a full snapshot, not compared with a base.
 - **Honest failures**: every part writes `ok`, `fail` or `skip` with the reason. A part that failed is reported as not checked, never as zero findings.
 
@@ -116,16 +118,17 @@ Start a new agent session in your repository, then ask, for example:
 - "Scan this branch for security issues before I open the PR."
 - "Scan against `origin/develop`" (the agent passes `--base origin/develop`).
 - "Also scan the image `ghcr.io/me/app:1.4`" (`--image`).
+- "Only SAST, do not run the build" (`--parts sast`).
 
 The agent runs `scan.sh`, reads the report, opens the code of every new SAST finding and says whether it is a real issue, groups the vulnerable dependencies with their path and how to close them, and leaves the decision to you. It changes nothing in your code.
 
 You can also run the script yourself:
 
 ```bash
-bash ~/.claude/plugins/cache/mcthulhu1/appsec-scan/0.1.4/skills/appsec-scan/scan.sh . --help
+bash ~/.claude/plugins/cache/mcthulhu1/appsec-scan/0.2.0/skills/appsec-scan/scan.sh . --help
 ```
 
-That is the Claude Code path; Codex uses `~/.codex/plugins/cache/mcthulhu1/appsec-scan/0.1.4/`. The skills CLI puts the skill into the agent's skills directory in your project: `.agents/skills/appsec-scan/` for OpenCode and other agents that read `.agents/skills`, `.claude/skills/appsec-scan/` with `-a claude-code`. The script prints `REPORT=<path>/report.md` at the end.
+That is the Claude Code path; Codex uses `~/.codex/plugins/cache/mcthulhu1/appsec-scan/0.2.0/`. The skills CLI puts the skill into the agent's skills directory in your project: `.agents/skills/appsec-scan/` for OpenCode and other agents that read `.agents/skills`, `.claude/skills/appsec-scan/` with `-a claude-code`. The script prints `REPORT=<path>/report.md` at the end.
 
 ## Limitations
 

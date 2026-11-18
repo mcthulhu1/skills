@@ -3,7 +3,7 @@
 # container images (trivy image). Findings are compared with the merge-base of the base branch: new vs existing.
 # Never edits the repository's source, build or lock files. Report: <cache>/runs/<repo>-<time>/report.md
 #
-# Usage: scan.sh [REPO] [--base REF] [--no-base] [--no-update] [--rules PATH] [--image REF]... [--docker-build]
+# Usage: scan.sh [REPO] [--base REF] [--no-base] [--no-update] [--rules PATH] [--image REF]... [--docker-build] [--parts LIST]
 #   REPO            repository to scan (default: current directory)
 #   --base REF      base for "new vs existing" (default: origin/main, origin/master, main, master; local refs, no fetch)
 #   --no-base       do not compare with a base
@@ -11,6 +11,8 @@
 #   --rules PATH    use these opengrep rules (file or directory) instead of the Semgrep registry; no requests to semgrep.dev
 #   --image REF     scan an existing container image (repeatable); nothing is built
 #   --docker-build  build every Dockerfile of the repository (runs its RUN steps) and scan the images
+#   --parts LIST    run only these parts, comma-separated: sast, sca, image (default: sast,sca, plus image
+#                   with --image or --docker-build); image needs --image or --docker-build
 set -uo pipefail
 umask 022
 
@@ -20,7 +22,7 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/appsec-scan"
 MIN_TRIVY="0.63.0"  # first release with --disable-telemetry and --skip-version-check
 OPENGREP_ISSUER="https://token.actions.githubusercontent.com"
 
-usage() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,/^[^#]/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; }  # the header comment up to the first code line
 
 REPO_ARG="."
 BASE_REF=""
@@ -29,6 +31,7 @@ DO_UPDATE=1
 RULES=""
 IMAGES=()
 DOCKER_BUILD=0
+PARTS_ARG=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --base) [[ $# -ge 2 ]] || { echo "--base needs a value" >&2; exit 2; }; BASE_REF="$2"; shift 2 ;;
@@ -37,12 +40,37 @@ while [[ $# -gt 0 ]]; do
         --rules) [[ $# -ge 2 ]] || { echo "--rules needs a path" >&2; exit 2; }; RULES="$2"; shift 2 ;;
         --image) [[ $# -ge 2 ]] || { echo "--image needs a reference" >&2; exit 2; }; IMAGES+=("$2"); shift 2 ;;
         --docker-build) DOCKER_BUILD=1; shift ;;
+        --parts) [[ $# -ge 2 ]] || { echo "--parts needs a list: sast, sca, image" >&2; exit 2; }; PARTS_ARG="$2"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         --) shift; [[ $# -gt 0 ]] && { REPO_ARG="$1"; shift; } ;;
         -*) echo "Unknown option: $1 (see --help)" >&2; exit 2 ;;
         *) REPO_ARG="$1"; shift ;;
     esac
 done
+
+# Parts to run: P_SAST, P_SCA, P_IMAGE (1 = requested)
+P_SAST=1; P_SCA=1; P_IMAGE=0
+[[ ${#IMAGES[@]} -gt 0 || $DOCKER_BUILD -eq 1 ]] && P_IMAGE=1
+if [[ -n "$PARTS_ARG" ]]; then
+    P_SAST=0; P_SCA=0; P_IMAGE=0
+    IFS=, read -r -a parts_list <<< "$PARTS_ARG"
+    for part in ${parts_list[@]+"${parts_list[@]}"}; do
+        case "$part" in
+            sast) P_SAST=1 ;;
+            sca) P_SCA=1 ;;
+            image) P_IMAGE=1 ;;
+            *) echo "Unknown part in --parts: '$part' (use sast, sca, image)" >&2; exit 2 ;;
+        esac
+    done
+    [[ $((P_SAST + P_SCA + P_IMAGE)) -gt 0 ]] || { echo "--parts is empty (use sast, sca, image)" >&2; exit 2; }
+    if [[ $P_IMAGE -eq 1 && ${#IMAGES[@]} -eq 0 && $DOCKER_BUILD -eq 0 ]]; then
+        echo "--parts image needs --image REF or --docker-build" >&2; exit 2
+    fi
+    if [[ $P_IMAGE -eq 0 && ( ${#IMAGES[@]} -gt 0 || $DOCKER_BUILD -eq 1 ) ]]; then
+        echo "--image and --docker-build need image in --parts" >&2; exit 2
+    fi
+fi
+NOT_REQUESTED="not requested (--parts $PARTS_ARG)"
 
 for tool in git python3; do
     command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required" >&2; exit 2; }
@@ -138,6 +166,8 @@ DIRTY="$(git -C "$REPO" status --porcelain --untracked-files=no | wc -l | tr -d 
 BASE_SHA=""
 if [[ $DO_BASE -eq 0 ]]; then
     status base skip "disabled (--no-base)"
+elif [[ $P_SAST -eq 0 && $P_SCA -eq 0 ]]; then
+    status base skip "not needed: images are not compared with a base ($NOT_REQUESTED for sast and sca)"
 else
     if [[ -z "$BASE_REF" ]]; then
         for r in origin/main origin/master main master; do
@@ -188,6 +218,7 @@ sys.exit(1)' "$1" "$2"
 helper meta "$RUN/meta.json" REPO "$REPO" NAME "$NAME" BRANCH "$BRANCH" HEAD_SHA "$HEAD_SHA" DIRTY "$DIRTY" \
     BASE_REF "$BASE_REF" BASE_SHA "$BASE_SHA" LANGS "${LANGS[*]:-}" BUILD "$BUILD" \
     RULES "$(if [[ -n "$RULES" ]]; then printf 'custom %s' "$RULES"; else echo registry; fi)" UPDATE "$DO_UPDATE" \
+    PARTS "$PARTS_ARG" \
     || { echo "writing meta.json failed" >&2; exit 2; }
 
 # ------------------------------------------------------------------ 2. Tools and rules
@@ -334,18 +365,22 @@ update_rules() {
 }
 
 step "Tools"
-command -v curl >/dev/null 2>&1 || status tools-curl fail "curl not found; install: $(hint curl)"
-if [[ $DO_UPDATE -eq 1 ]] && command -v curl >/dev/null 2>&1; then
+[[ $P_SAST -eq 1 ]] && ! command -v curl >/dev/null 2>&1 && status tools-curl fail "curl not found; install: $(hint curl)"
+if [[ $P_SAST -eq 0 ]]; then
+    status tools-opengrep skip "$NOT_REQUESTED"
+elif [[ $DO_UPDATE -eq 1 ]] && command -v curl >/dev/null 2>&1; then
     update_opengrep
 else
     status tools-opengrep skip "update disabled (--no-update)"
 fi
-opengrep_current
-OG_STATE=$?
+OG_STATE=0
+[[ $P_SAST -eq 1 ]] && { opengrep_current; OG_STATE=$?; }
 [[ -n "$OG_TAG" ]] && printf '%s\n' "$OG_TAG" > "$RUN/opengrep.release"
 
 TRIVY_OK=0
-if ! command -v trivy >/dev/null 2>&1; then
+if [[ $P_SCA -eq 0 && $P_IMAGE -eq 0 ]]; then
+    status tools-trivy skip "$NOT_REQUESTED"
+elif ! command -v trivy >/dev/null 2>&1; then
     status tools-trivy fail "trivy not found; install: $(hint trivy)"
 elif ! trivy version --format json > "$RUN/trivy-version.json" 2>> "$LOG"; then
     status tools-trivy fail "trivy version failed, see scan.log"
@@ -371,7 +406,7 @@ else
     read_list PACKS <( { helper get "$RUN/inv-head/inventory.json" langs
                          [[ -n "$BASE_SHA" ]] && helper get "$RUN/inv-base/inventory.json" langs; } | sort -zu)
 fi
-if [[ -z "$RULES" && ${#PACKS[@]} -gt 0 ]]; then
+if [[ $P_SAST -eq 1 && -z "$RULES" && ${#PACKS[@]} -gt 0 ]]; then
     if [[ $DO_UPDATE -eq 1 ]]; then
         command -v curl >/dev/null 2>&1 && update_rules "${PACKS[@]}"
     else
@@ -407,7 +442,10 @@ sast() {  # sast DIR OUT EXCLUDE_LIST
     SAST_REASON="$(helper check-sast "$2")" || return 1
     return 0
 }
-if [[ ${#PACKS[@]} -eq 0 && -z "$RULES" ]]; then
+if [[ $P_SAST -eq 0 ]]; then
+    status sast skip "$NOT_REQUESTED"
+    status sast-base skip "$NOT_REQUESTED"
+elif [[ ${#PACKS[@]} -eq 0 && -z "$RULES" ]]; then
     status sast skip "no Java, Kotlin, Go, Rust, Python, JavaScript or TypeScript files"
     status sast-base skip "no SAST languages"
 elif [[ $OG_STATE -eq 2 ]]; then
@@ -522,29 +560,33 @@ native_part() {  # native_part INV-DIR OUT PART
     fi
 }
 
-step "SCA"
-case "$BUILD" in
-    gradle|maven)
-        jvm_part "$REPO" "$RUN/deps-head" "$RUN/sca-head.json" "$RUN/inv-head/inventory.json" sca "$BUILD"
-        if [[ -n "$BASE_SHA" ]]; then
-            # the base is built with its own build system: a branch may move from Maven to Gradle
-            base_build="$(helper get "$RUN/inv-base/inventory.json" build)"
-            case "$base_build" in
-                gradle|maven) jvm_part "$RUN/base-src" "$RUN/deps-base" "$RUN/sca-base.json" "$RUN/inv-base/inventory.json" sca-base "$base_build" ;;
-                *) status sca-base skip "no Gradle or Maven build in the base" ;;
-            esac
-        else
-            status sca-base skip "no base"
-        fi ;;
-    *)
-        status sca skip "no Gradle or Maven build"
-        status sca-base skip "no Gradle or Maven build" ;;
-esac
-native_part "$RUN/inv-head" "$RUN/sca-native-head.json" sca-native
-if [[ -n "$BASE_SHA" ]]; then
-    native_part "$RUN/inv-base" "$RUN/sca-native-base.json" sca-native-base
+if [[ $P_SCA -eq 0 ]]; then
+    for part in sca sca-base sca-native sca-native-base; do status "$part" skip "$NOT_REQUESTED"; done
 else
-    status sca-native-base skip "no base"
+    step "SCA"
+    case "$BUILD" in
+        gradle|maven)
+            jvm_part "$REPO" "$RUN/deps-head" "$RUN/sca-head.json" "$RUN/inv-head/inventory.json" sca "$BUILD"
+            if [[ -n "$BASE_SHA" ]]; then
+                # the base is built with its own build system: a branch may move from Maven to Gradle
+                base_build="$(helper get "$RUN/inv-base/inventory.json" build)"
+                case "$base_build" in
+                    gradle|maven) jvm_part "$RUN/base-src" "$RUN/deps-base" "$RUN/sca-base.json" "$RUN/inv-base/inventory.json" sca-base "$base_build" ;;
+                    *) status sca-base skip "no Gradle or Maven build in the base" ;;
+                esac
+            else
+                status sca-base skip "no base"
+            fi ;;
+        *)
+            status sca skip "no Gradle or Maven build"
+            status sca-base skip "no Gradle or Maven build" ;;
+    esac
+    native_part "$RUN/inv-head" "$RUN/sca-native-head.json" sca-native
+    if [[ -n "$BASE_SHA" ]]; then
+        native_part "$RUN/inv-base" "$RUN/sca-native-base.json" sca-native-base
+    else
+        status sca-native-base skip "no base"
+    fi
 fi
 
 # ------------------------------------------------------------------ 5. Container images (full snapshot, no base)
@@ -606,7 +648,9 @@ if [[ $DOCKER_BUILD -eq 1 ]]; then
         done
     fi
 fi
-if [[ ${#IMAGES[@]} -eq 0 && $DOCKER_BUILD -eq 0 ]]; then
+if [[ -n "$PARTS_ARG" && $P_IMAGE -eq 0 ]]; then
+    status docker skip "$NOT_REQUESTED"
+elif [[ ${#IMAGES[@]} -eq 0 && $DOCKER_BUILD -eq 0 ]]; then
     status docker skip "not requested: pass --image REF to scan an image, or --docker-build to build the Dockerfiles"
 fi
 

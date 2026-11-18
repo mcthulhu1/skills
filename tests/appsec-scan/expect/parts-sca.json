@@ -1,0 +1,28 @@
+{
+ "status": {
+  "sast": "skip",
+  "sast-base": "skip",
+  "tools-opengrep": "skip",
+  "sca-native": "ok",
+  "sca-native-base": "ok"
+ },
+ "status_contains": {
+  "sast": "not requested (--parts sca)"
+ },
+ "log_absent": [
+  "fetch https://semgrep.dev",
+  "fetch https://github.com/opengrep",
+  "scan --quiet"
+ ],
+ "report_contains": [
+  "## SAST: not requested (--parts sca)",
+  "### What to change in the build"
+ ],
+ "sca_ids": [
+  [
+   "existing",
+   "lodash",
+   "CVE-2021-23337"
+  ]
+ ]
+}

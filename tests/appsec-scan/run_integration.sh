@@ -15,7 +15,8 @@ trap 'chmod -R u+rwX "$WORK" 2>/dev/null; rm -rf "$WORK"' EXIT
 
 ALL=(npm python go go-nobase cargo formats gradle gradle-nobase gradle-unresolved maven samename-gradle samename-maven
      r2-og-exit r2-og-badjson r2-og-errors r2-trivy-base rules-union rules-missing r7-names r7-gradlew r7-lock r7-parent
-     r7-dockerfile docker-default docker-image docker-labels docker-missing docker-build gradle-files maven-to-gradle docker-gradle)
+     r7-dockerfile docker-default docker-image docker-labels docker-missing docker-build gradle-files maven-to-gradle docker-gradle
+     parts-sast parts-sca parts-image parts-errors)
 CASES=("$@")
 [[ ${#CASES[@]} -eq 0 ]] && CASES=("${ALL[@]}")
 
@@ -89,12 +90,17 @@ run_case() {
         docker-missing) fixture=docker; args=(--image appsec-scan-fixture/does-not-exist:0) ;;
         docker-build) fixture=docker; args=(--docker-build) ;;
         docker-gradle) fixture=docker-gradle; args=(--docker-build) ;;
+        parts-sast) fixture=gradle; args=(--parts sast) ;;
+        parts-sca) fixture=npm; args=(--parts sca) ;;
+        parts-image) fixture=docker; args=(--parts image --image alpine:3.20.0) ;;
         docker-labels) fixture=docker; args=(--image alpine:3.20.0 --image alpine-3.20.0) ;;
         r7-dockerfile) fixture=r7-dockerfile; args=(--docker-build) ;;
         rules-union|rules-missing) fixture=lang-removed; args=(--no-update); rules=() ;;
         *) fixture=$name ;;
     esac
-    case "$fixture" in
+    [[ $name == parts-errors ]] && { parts_errors; return; }
+    # parts-sast does not run the build, so it needs no gradle
+    [[ $name == parts-sast ]] || case "$fixture" in
         gradle|gradle-unresolved|gradle-files|maven-to-gradle|docker-gradle|r7-gradlew|samename-gradle)
             if ! command -v gradle >/dev/null 2>&1 && [[ $fixture != r7-gradlew ]]; then
                 [[ "${APPSEC_REQUIRE_JVM:-0}" == 1 ]] && { echo "FAIL $name: gradle not on PATH"; failed=$((failed + 1)); return; }
@@ -146,6 +152,22 @@ run_case() {
         failed=$((failed + 1))
         diagnose "$run"
     fi
+}
+
+parts_errors() {  # contradicting or unknown --parts: exit 2 before anything runs
+    local dir="$WORK/parts-errors/repo" bad=0 a
+    mkdir -p "$WORK/parts-errors"
+    bash "$HERE/fixtures.sh" npm "$dir" > /dev/null 2>&1 || { echo "FAIL parts-errors: fixture"; failed=$((failed + 1)); return; }
+    echo "CASE parts-errors"
+    for a in "--parts image" "--parts sast --image alpine:3.20.0" "--parts sast --docker-build" "--parts sast,foo" "--parts ," "--parts"; do
+        # shellcheck disable=SC2086 # the options are split on purpose
+        (cd -- "$dir" && bash "$SCAN" . $a) > "$WORK/parts-errors/out" 2>&1
+        rc=$?
+        if [[ $rc -ne 2 ]] || grep -q '^REPORT=' "$WORK/parts-errors/out"; then
+            echo "  FAIL '$a': exit $rc, $(tail -1 "$WORK/parts-errors/out")"; bad=1
+        fi
+    done
+    if [[ $bad -eq 0 ]]; then echo "  6/6 checks passed"; passed=$((passed + 1)); else failed=$((failed + 1)); fi
 }
 
 diagnosed=0

@@ -2,6 +2,17 @@
 
 All notable changes to the `appsec-scan` plugin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`. Releases are tagged `appsec-scan-vX.Y.Z`.
 
+## [0.2.0] - 2026-11-18
+
+### Added
+
+- Report: "What to change in the build", one row per direct dependency (Gradle, Maven, lock file with a graph, a declared jar file, or "origin unknown"), new findings first. Each row names the vulnerable packages with the version that fixes all their CVEs (for each CVE the lowest fix on the installed release line, then the highest of those) and what to change: upgrade the dependency, or for a transitive package upgrade the direct one to a version that brings the fix, or pin it. No version of a parent is guessed. `summary.json` has the same rows in `findings.actions`.
+- `--parts LIST` (`sast`, `sca`, `image`): run only these parts. A part that was not requested is `skip` with "not requested (--parts ...)", its tools are not run or downloaded, and the report says "not requested" instead of a result. `--parts` that contradicts `--image`/`--docker-build`, an unknown part or an empty list exit with 2.
+
+### Fixed
+
+- `--help` no longer prints two lines of the script after the usage.
+
 ## [0.1.4] - 2026-11-18
 
 ### Fixed

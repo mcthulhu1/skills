@@ -375,6 +375,105 @@ def counts(items):
     return ", ".join(f"{k} {c[k]}" for k in sorted(c, key=sev_key)) or "0"
 
 
+# ------------------------------------------------------------------ what to change in the build
+UNKNOWN_ORIGINS = ("path not found", "transitive: path not found", "direct/transitive: unknown")
+
+
+def direct_of(x):
+    """(direct dependency, kind) of an SCA finding from its origin; kind: direct, transitive, file, unknown."""
+    origin = x["origin"]
+    if x["part"] == "JVM":
+        origin = re.sub(r"^\[[^\]]*\] ", "", origin)
+        if origin.startswith("file dependency "):
+            return origin[len("file dependency "):], "file"
+        if origin.startswith(UNKNOWN_ORIGINS):
+            return None, "unknown"
+        chain = origin.split(" <- ")  # vulnerable <- ... <- direct <- the project
+        return (chain[-2], "transitive") if len(chain) >= 3 else (chain[0], "direct")
+    if origin == "direct dependency":
+        return f"{x['pkg']}@{x['version']}", "direct"
+    if origin.startswith(UNKNOWN_ORIGINS):
+        return None, "unknown"
+    chain = re.sub(r" \(direct\)$", "", origin).split(" <- ")  # vulnerable <- ... <- direct
+    return (chain[-1], "transitive") if len(chain) >= 2 else (chain[0], "direct")
+
+
+VERSION_RE = re.compile(r"^\d+(\.\d+)*([.+-][0-9A-Za-z.+-]*)?$")
+
+
+def version_key(v):
+    """Numeric parts first; a pre-release suffix sorts below the release (2.0.0-beta < 2.0.0)."""
+    m = re.match(r"^(\d+(?:\.\d+)*)(.*)$", v)
+    nums = tuple(int(n) for n in m.group(1).split(".")) if m else ()
+    suffix = m.group(2) if m else v
+    return nums, 0 if suffix.startswith("-") else 1
+
+
+def fixed_text(rows, installed):
+    """Version that fixes every CVE of one installed package: for each CVE the lowest fixed version not below the
+    installed one (trivy lists one per release line, "3.1.1, 2.6.7"), then the highest of those. None if no CVE has a
+    fix; the CVE ids as text if a version cannot be compared."""
+    if not VERSION_RE.match(installed):
+        fixes = sorted({r["fixed"] for r in rows if r["fixed"] != "-"})
+        return "; ".join(fixes) or None
+    best = []
+    for r in rows:
+        cands = [c.strip().lstrip(">=").strip() for c in r["fixed"].split(",") if c.strip() and c.strip() != "-"]
+        if not cands:
+            continue
+        if not all(VERSION_RE.match(c) for c in cands):
+            return "; ".join(f"{x['id']} {x['fixed']}" for x in sorted(rows, key=lambda x: x["id"]))
+        above = [c for c in cands if version_key(c) > version_key(installed)]
+        best.append(min(above or cands, key=version_key))
+    return max(best, key=version_key) if best else None
+
+
+def build_actions(all_sca):
+    """One row per direct dependency (or declared file, or unknown origin) with what to change."""
+    groups = collections.OrderedDict()
+    for x in all_sca:
+        direct, kind = direct_of(x)
+        key = (x["part"] == "JVM", "" if x["part"] == "JVM" else x["target"], direct or "", kind)
+        groups.setdefault(key, []).append(x)
+    actions = []
+    for (jvm, target, direct, kind), rows in groups.items():
+        by_pkg = collections.OrderedDict()
+        for r in sorted(rows, key=lambda r: (r["pkg"], r["version"], r["id"])):
+            by_pkg.setdefault((r["pkg"], r["version"]), []).append(r)
+        packages, steps = [], []
+        for (pkg, ver), prs in by_pkg.items():
+            fixed = fixed_text(prs, ver)
+            packages.append({"pkg": pkg, "version": ver, "fixed": fixed, "ids": [r["id"] for r in prs]})
+            unfixed = sum(1 for r in prs if r["fixed"] in ("-", ""))
+            if fixed is not None and unfixed:
+                fixed_note = f" ({unfixed} of its CVEs have no fixed version yet)"
+            else:
+                fixed_note = ""
+            if fixed is None:
+                steps.append(f"{pkg}: no fixed version yet")
+            elif kind == "direct":
+                steps.append(f"upgrade {pkg} to >= {fixed}{fixed_note}")
+            elif kind == "file":
+                steps.append(f"replace the file with {pkg} >= {fixed}{fixed_note}")
+            elif kind == "transitive":
+                steps.append(f"upgrade {direct} to a version that brings {pkg} >= {fixed}, or pin {pkg}{fixed_note}")
+            else:
+                steps.append(f"{pkg} >= {fixed}{fixed_note}: who brings it in is unknown, see the findings below")
+        where = sorted({m for r in rows for m in r["modules"]}) if jvm else [target]
+        actions.append({
+            "direct": direct or "origin unknown", "kind": kind, "where": where or ["JVM " + JVM_TARGET],
+            "new": sum(1 for r in rows if r["status"] == NEW), "unknown": sum(1 for r in rows if r["status"] == UNKNOWN),
+            "total": len(rows), "severity": counts(rows), "top": min(sev_key(r["severity"]) for r in rows),
+            "packages": packages, "action": "; ".join(steps),
+        })
+    actions.sort(key=lambda a: (a["new"] == 0, a["top"], a["direct"]))
+    return actions
+
+
+def not_requested(state):
+    return state[0] == "skip" and state[1].startswith("not requested (--parts")
+
+
 def build(run):
     meta = load_meta(run)
     parts = Parts(load_status(run))
@@ -403,6 +502,10 @@ def build(run):
     w(f"- Build: {meta.get('BUILD', 'none')}; SAST languages: {meta.get('LANGS') or '-'}; {rules_text}")
     w(f"- Tools: opengrep {opengrep_rel or '?'} (`--taint-intrafile`), trivy {trivy_ver.get('Version', '?')}, "
       f"trivy database from {str(db.get('UpdatedAt', '?'))[:10]}")
+    if meta.get("PARTS"):
+        asked = [x for x in meta["PARTS"].split(",") if x]
+        rest = [x for x in ("sast", "sca", "image") if x not in asked]
+        w(f"- Parts: requested {', '.join(asked)}" + (f"; **not requested: {', '.join(rest)}**" if rest else ""))
     w("")
 
     problems = [r for r in parts.rows if r[1] == "fail"]
@@ -430,7 +533,9 @@ def build(run):
     head_sast.sort(key=lambda x: (x["status"] != NEW, sev_key(x["severity"]), x["file"], x["line"] or 0))
     new_sast = [x for x in head_sast if x["status"] == NEW]
     sast_state = parts.get("sast")
-    if sast_state[0] == "skip":
+    if not_requested(sast_state):
+        w(f"## SAST: {md(sast_state[1])}")
+    elif sast_state[0] == "skip":
         w(f"## SAST: not applicable ({md(sast_state[1])})")
     elif sast_state[0] != "ok" and not head_sast:
         w("## SAST: not run (see \"Parts that failed\")")
@@ -502,7 +607,9 @@ def build(run):
         sca_new_total += sum(1 for x in head if x["status"] == NEW)
     limits = lock_limitations(inv_head, native_head_data if parts.ok("sca-native") else None)
     sca_states = [parts.get(p)[0] for p, _, _, _ in sca_parts]
-    if all(s == "skip" for s in sca_states):
+    if not_requested(parts.get("sca")):
+        w(f"## SCA: {md(parts.get('sca')[1])}")
+    elif all(s == "skip" for s in sca_states):
         w("## SCA: not applicable (no Gradle/Maven build and no supported lock file)")
     elif not sca_ran and not all_sca:
         w("## SCA: not run (see \"Parts that failed\")")
@@ -520,6 +627,26 @@ def build(run):
         for n in limits:
             w(f"- {n}")
         w("")
+    actions = build_actions(all_sca)
+    if actions:
+        w("### What to change in the build")
+        w("")
+        w("One row per direct dependency: new findings first. Versions come from the vulnerability database "
+          "(the fixed version of the vulnerable package); a safe version of a parent is not known, so none is named.")
+        w("")
+        w("| New | Direct dependency | Where | Vulnerable packages | Severity | What to change |")
+        w("|---|---|---|---|---|---|")
+        for a in actions:
+            new = str(a["new"]) + (f" (+{a['unknown']} ?)" if a["unknown"] else "")
+            pkgs = ", ".join(f"`{md(p['pkg'])}` {md(p['version'])}" + (f" -> {md(p['fixed'])}" if p["fixed"] else "")
+                             for p in a["packages"])
+            w(f"| {new} of {a['total']} | `{md(a['direct'])}` | {md(', '.join(a['where']))} | {pkgs} | {a['severity']} "
+              f"| {md(a['action'])} |")
+        w("")
+        if any(a["kind"] == "transitive" for a in actions):
+            w("A transitive package is listed under the first path found to it; it may also come in through other "
+              "dependencies (the full table and origins are below).")
+            w("")
     all_sca.sort(key=lambda x: (x["status"] != NEW, sev_key(x["severity"]), x["pkg"], x["id"]))
     if all_sca:
         w("| Status | Severity | Package | Version | Fixed in | Vulnerability | Where | Title |")
@@ -581,7 +708,9 @@ def build(run):
 
     summary = {
         "repo": meta.get("NAME"), "branch": meta.get("BRANCH"), "dirty": meta.get("DIRTY"),
-        "sast_total": len(head_sast), "sast_new": len(new_sast) if sast_why is None else None,
+        "parts": meta.get("PARTS") or "",
+        "sast_total": None if not_requested(sast_state) else len(head_sast),
+        "sast_new": len(new_sast) if sast_why is None else None,
         "sca_total": len(all_sca) if sca_ran else None,
         "sca_new": sca_new_total if (sca_ran and sca_compared) else None,
         "sca_counts": counts(all_sca) if sca_ran else "",
@@ -594,6 +723,8 @@ def build(run):
             "sca": [{"status": x["status"], "type": x["type"], "target": x["target"], "pkg": x["pkg"], "version": x["version"],
                      "id": x["id"], "origin": x["origin"]} for x in all_sca],
             "sca_fixed": [{"type": x["type"], "target": x["target"], "pkg": x["pkg"], "id": x["id"]} for x in fixed_all],
+            "actions": [{k: a[k] for k in ("direct", "kind", "where", "new", "unknown", "total", "packages", "action")}
+                        for a in actions],
         },
     }
     return "\n".join(out), summary

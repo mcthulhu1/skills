@@ -2,6 +2,13 @@
 
 All notable changes to the `rfc-first` plugin (up to 1.1.5: the `mcthulhu1-skills` plugin). The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`. Releases from 1.2.0 are tagged `rfc-first-vX.Y.Z`.
 
+## [1.3.0] - 2026-11-18
+
+### Added
+
+- Approval brief, [`references/approval-brief.md`](https://github.com/mcthulhu1/skills/blob/main/plugins/rfc-first/skills/rfc-first/references/approval-brief.md): every question that asks the owner to choose comes with a brief the owner can decide from without opening the RFC: what is wrong now, how it will work, one example on real data, what is affected, cost, risks, the recommendation and what "yes" authorizes. A short form for small choices; a worked example on INV-42.
+- RFC template: the optional section "Changes since approval". After a material change to an approved RFC, the agent shows what changed against which decision and asks only about those rows.
+
 ## [1.2.1] - 2026-11-18
 
 ### Fixed

@@ -310,6 +310,156 @@ class ScaTest(unittest.TestCase):
         self.assertTrue(summary["findings"]["sca"][0]["origin"].startswith("direct/transitive: unknown"))
 
 
+def jar_result(pkg, ver, vid, fixed="9.9.9", path="jars/root/x.jar"):
+    v = dict(vuln(pkg, ver, vid), PkgPath=path, FixedVersion=fixed)
+    return {"Target": path, "Type": "jar", "Vulnerabilities": [v]}
+
+
+class ActionsTest(unittest.TestCase):
+    def setUp(self):
+        self.run = Run()
+
+    def tearDown(self):
+        self.run.close()
+
+    def gradle_paths(self, *lines):
+        os.makedirs(os.path.join(self.run.dir, "deps-head", "paths"), exist_ok=True)
+        with open(os.path.join(self.run.dir, "deps-head", "paths", "root.tsv"), "w", encoding="utf-8") as f:
+            f.write("".join(line + "\n" for line in lines))
+
+    def actions(self):
+        text, summary = self.run.build()
+        return text, {a["direct"]: a for a in summary["findings"]["actions"]}
+
+    def test_gradle_direct_and_transitive(self):
+        self.run.json("sca-head.json", trivy(jar_result("org.yaml:snakeyaml", "1.33", "CVE-2022-1471", "2.0"),
+                                             jar_result("g:deep", "1.0", "CVE-8", "1.2", "jars/root/deep.jar")))
+        self.run.json("sca-base.json", trivy())
+        self.gradle_paths("org.yaml:snakeyaml:1.33\torg.yaml:snakeyaml:1.33 <- :", "g:deep:1.0\tg:deep:1.0 <- g:lib:2.0 <- :")
+        text, acts = self.actions()
+        self.assertEqual(acts["org.yaml:snakeyaml:1.33"]["action"], "upgrade org.yaml:snakeyaml to >= 2.0")
+        self.assertEqual(acts["org.yaml:snakeyaml:1.33"]["kind"], "direct")
+        self.assertEqual(acts["g:lib:2.0"]["action"], "upgrade g:lib:2.0 to a version that brings g:deep >= 1.2, or pin g:deep")
+        self.assertIn("### What to change in the build", text)
+        self.assertIn("first path found", text)
+        # no version of the parent is invented: the only version in the action is the child's fixed version
+        self.assertNotRegex(acts["g:lib:2.0"]["action"], r"g:lib:2\.0 to >=")
+
+    def test_maven_tree_direct(self):
+        self.run.json("sca-head.json", trivy(jar_result("org.yaml:snakeyaml", "1.33", "CVE-2022-1471", "2.0")))
+        self.run.json("sca-base.json", trivy())
+        tree = os.path.join(self.run.dir, "deps-head", "tree")
+        os.makedirs(tree)
+        with open(os.path.join(tree, "tree.txt"), "w", encoding="utf-8") as f:
+            f.write("fixture:fixture:jar:1.0.0\n+- org.example:lib:jar:2.0:compile\n|  \\- org.yaml:snakeyaml:jar:1.33:compile\n")
+        _, acts = self.actions()
+        self.assertEqual(list(acts), ["org.example:lib:2.0"])
+        self.assertEqual(acts["org.example:lib:2.0"]["kind"], "transitive")
+
+    def test_lock_file_graph_and_unknown(self):
+        graph = {"Target": "package-lock.json", "Type": "npm",
+                 "Packages": [{"ID": "helper@1.0.0", "Name": "helper", "Relationship": "direct", "DependsOn": ["node-fetch@2.6.0"]},
+                              {"ID": "node-fetch@2.6.0", "Name": "node-fetch", "Relationship": "indirect"},
+                              {"ID": "lodash@4.17.15", "Name": "lodash", "Relationship": "direct"}],
+                 "Vulnerabilities": [dict(vuln("node-fetch", "2.6.0", "CVE-2022-0235", "node-fetch@2.6.0"), FixedVersion="2.6.7"),
+                                     dict(vuln("node-fetch", "2.6.0", "CVE-2020-15168", "node-fetch@2.6.0"), FixedVersion="2.6.1"),
+                                     dict(vuln("lodash", "4.17.15", "CVE-2021-23337", "lodash@4.17.15"), FixedVersion="4.17.21")]}
+        flat = {"Target": "requirements.txt", "Type": "pip", "Packages": [{"ID": "a@1", "Name": "a"}],
+                "Vulnerabilities": [dict(vuln("a", "1", "CVE-7", "a@1"), FixedVersion="")]}
+        self.run.json("sca-native-head.json", trivy(graph, flat))
+        self.run.json("sca-native-base.json", trivy())
+        _, acts = self.actions()
+        # the highest fixed version over the package's CVEs
+        self.assertEqual(acts["helper@1.0.0"]["action"],
+                         "upgrade helper@1.0.0 to a version that brings node-fetch >= 2.6.7, or pin node-fetch")
+        self.assertEqual(acts["lodash@4.17.15"]["action"], "upgrade lodash to >= 4.17.21")
+        self.assertEqual(acts["origin unknown"]["action"], "a: no fixed version yet")
+        self.assertEqual(acts["origin unknown"]["where"], ["requirements.txt"])
+
+    def test_branching_fixed_versions_are_listed(self):
+        res = {"Target": "go.mod", "Type": "gomod", "Packages": [{"ID": "x@1", "Name": "x", "Relationship": "direct"}],
+               "Vulnerabilities": [dict(vuln("x", "1", "CVE-1", "x@1"), FixedVersion="1.5.2, 2.1.0"),
+                                   dict(vuln("x", "1", "CVE-2", "x@1"), FixedVersion="1.5.0")]}
+        self.run.json("sca-native-head.json", trivy(res))
+        self.run.json("sca-native-base.json", trivy())
+        _, acts = self.actions()
+        # per CVE the lowest fix on the installed release line (1.5.2, not 2.1.0), then the highest over CVEs
+        self.assertEqual(acts["x@1"]["action"], "upgrade x to >= 1.5.2")
+
+    def test_some_cves_without_fix_are_named(self):
+        res = {"Target": "go.mod", "Type": "gomod", "Packages": [{"ID": "x@1.0", "Name": "x", "Relationship": "direct"}],
+               "Vulnerabilities": [dict(vuln("x", "1.0", "CVE-1", "x@1.0"), FixedVersion=">=1.2"),
+                                   dict(vuln("x", "1.0", "CVE-2", "x@1.0"), FixedVersion="")]}
+        self.run.json("sca-native-head.json", trivy(res))
+        self.run.json("sca-native-base.json", trivy())
+        _, acts = self.actions()
+        self.assertEqual(acts["x@1.0"]["action"], "upgrade x to >= 1.2 (1 of its CVEs have no fixed version yet)")
+
+    def test_file_dependency(self):
+        self.run.json("sca-head.json", trivy(jar_result("org.apache.commons:commons-text", "1.9", "CVE-2022-42889", "1.10.0",
+                                                        "jars/root/files/commons-text-1.9.jar")))
+        self.run.json("sca-base.json", trivy())
+        os.makedirs(os.path.join(self.run.dir, "deps-head", "files"))
+        with open(os.path.join(self.run.dir, "deps-head", "files", "root.tsv"), "w", encoding="utf-8") as f:
+            f.write("commons-text-1.9.jar\tlibs/commons-text-1.9.jar\n")
+        _, acts = self.actions()
+        self.assertEqual(acts["libs/commons-text-1.9.jar"]["action"],
+                         "replace the file with org.apache.commons:commons-text >= 1.10.0")
+
+    def test_existing_are_listed_after_new(self):
+        old = {"Target": "go.mod", "Type": "gomod", "Packages": [{"ID": "a@1", "Name": "a", "Relationship": "direct"},
+                                                                 {"ID": "b@1", "Name": "b", "Relationship": "direct"}],
+               "Vulnerabilities": [dict(vuln("a", "1", "CVE-1", "a@1"), Severity="CRITICAL")]}
+        new = json.loads(json.dumps(old))
+        new["Vulnerabilities"].append(dict(vuln("b", "1", "CVE-2", "b@1"), Severity="LOW"))
+        self.run.json("sca-native-head.json", trivy(new))
+        self.run.json("sca-native-base.json", trivy(old))
+        _, summary = self.run.build()
+        got = [(a["direct"], a["new"]) for a in summary["findings"]["actions"]]
+        self.assertEqual(got, [("b@1", 1), ("a@1", 0)])
+
+
+class PartsTest(unittest.TestCase):
+    def setUp(self):
+        self.run = Run()
+
+    def tearDown(self):
+        self.run.close()
+
+    def test_not_requested_part_is_not_empty(self):
+        for name in ("sca", "sca-base", "sca-native", "sca-native-base"):
+            self.run.statuses[name] = "skip"
+        text, summary = self.build_with(parts="sast", skip_comment="not requested (--parts sast)")
+        self.assertIn("- Parts: requested sast; **not requested: sca, image**", text)
+        self.assertIn("## SCA: not requested (--parts sast)", text)
+        self.assertNotIn("## SCA: 0", text)
+        self.assertIsNone(summary["sca_total"])
+        self.assertEqual(summary["parts"], "sast")
+
+    def test_sast_not_requested(self):
+        for name in ("sast", "sast-base"):
+            self.run.statuses[name] = "skip"
+        text, summary = self.build_with(parts="sca", skip_comment="not requested (--parts sca)")
+        self.assertIn("## SAST: not requested (--parts sca)", text)
+        self.assertIsNone(summary["sast_total"])
+        self.assertIsNone(summary["sast_new"])
+
+    def build_with(self, parts, skip_comment):
+        text_status = os.path.join(self.run.dir, "status.tsv")
+
+        def build():
+            report._source_cache.clear()
+            with open(os.path.join(self.run.dir, "meta.json"), "w", encoding="utf-8") as f:
+                json.dump({"REPO": self.run.repo, "NAME": "fixture", "BRANCH": "feature", "HEAD_SHA": "1234567890ab",
+                           "DIRTY": "0", "BASE_REF": "main", "BASE_SHA": "abcdef123456", "LANGS": "python",
+                           "BUILD": "none", "RULES": "registry", "PARTS": parts}, f)
+            with open(text_status, "w", encoding="utf-8") as f:
+                for name, state in self.run.statuses.items():
+                    f.write(f"{name}\t{state}\t{skip_comment if state == 'skip' else name + ' ok'}\n")
+            return report.build(self.run.dir)
+        return build()
+
+
 class ImageTest(unittest.TestCase):
     def setUp(self):
         self.run = Run()

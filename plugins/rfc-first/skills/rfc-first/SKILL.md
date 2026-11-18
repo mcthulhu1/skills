@@ -8,7 +8,7 @@ description: >-
   behavior, a direct instruction to make a specific edit without an RFC, or executing an already approved
   plan within its scope; the validate, implement and status modes still apply to an existing RFC.
 metadata:
-  version: "1.2.1"
+  version: "1.3.0"
   opencode/slash: "true"
 ---
 
@@ -67,10 +67,11 @@ Use the [adaptable RFC template](references/rfc-template.md); do not fill every 
 ## 4. Ask for approval of the new choice only
 
 - Gather the available evidence before asking. Show the RFC path and its material revision, your recommendation and the specific open decision. If everything needed is already approved, continue the allowed work.
+- Every question that asks the owner to choose comes with an [approval brief](references/approval-brief.md): what is wrong now, how it will work, one example on real data, what is affected, cost, risks, the recommendation and what "yes" authorizes. A small choice gets the short form. The owner decides from the brief without opening the RFC.
 - Interpretation I is a proposal with its basis and impact. A material choice without an explicit decision is not accepted by silence or by the absence of objections. A reviewer's conclusion does not replace the owner's decision.
 - Decision D: the exact known answer, its scope, date/author/channel as far as known, and the source. Do not invent metadata; keep a verbatim answer apart from a paraphrase. An answer to Q1 is not approval of the whole RFC; an explicit decision may override an earlier one.
 - Close a Q where it is stated, with a link to its D. While waiting for an answer, stop only the dependent changes; continue reading, diagnostics and independent allowed steps.
-- After approval do not ask again for every file, class or list item. When scope, contract, risk or budget changes materially, get approval for the part that changed.
+- After approval do not ask again for every file, class or list item. When scope, contract, risk or budget changes materially, get approval for the part that changed: add "Changes since approval" to the RFC and ask only about its rows; the other decisions stay in force.
 
 ## 5. Implement and keep the state current
 

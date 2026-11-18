@@ -9,6 +9,7 @@ requirement → verified facts → decision → plan → change → verification
 - **Verbatim spec, required.** Before any code the agent copies the requirements word for word into `spec/<ID>.md` next to the RFC. A link to a ticket is not a copy, and a paraphrase is not a requirement. This is the core of the approach: the requirements live in your repository, not in a chat window or on a page that may change.
 - **Every fact has proof**: file:line, or command + cwd + result. Hypotheses are marked as hypotheses and withdrawn when refuted.
 - **Only the new choice is asked.** The agent checks what it can check itself and asks the owner only about real decisions, with a recommendation. An answer to one question is not approval of the whole RFC.
+- **Questions you can answer without opening the RFC.** Each choice comes with an [approval brief](skills/rfc-first/references/approval-brief.md): what is wrong now, how it will work, an example on real data, what is affected, cost, risks, the recommendation and what "yes" authorizes. When an approved RFC changes, the agent shows what changed against which decision and asks only about that.
 - **Status is layered**: approved ≠ implemented ≠ verified ≠ merged ≠ in a build artifact ≠ deployed ≠ behavior confirmed.
 - **The scale fits the task**: a short fix gets a short record.
 - **A structure check** ([checklist](skills/rfc-first/references/structure-check.md)): the agent checks every RFC it writes for the required sections, a status line and working links to the verbatim spec.

@@ -1,0 +1,26 @@
+{
+ "status": {
+  "sast": "ok",
+  "sca": "skip",
+  "sca-base": "skip",
+  "sca-native": "skip",
+  "tools-trivy": "skip",
+  "docker": "skip"
+ },
+ "status_contains": {
+  "sca": "not requested (--parts sast)",
+  "tools-trivy": "not requested"
+ },
+ "log_absent": [
+  "$ gradle",
+  "$ sh ./gradlew",
+  "$ trivy"
+ ],
+ "report_contains": [
+  "- Parts: requested sast; **not requested: sca, image**",
+  "## SCA: not requested (--parts sast)"
+ ],
+ "report_absent": [
+  "## SCA: 0"
+ ]
+}

@@ -8,7 +8,7 @@ description: >-
   in the code. Use only when the user explicitly asks for a security scan: it runs the project's build scripts and uses
   the network.
 metadata:
-  version: "0.1.4"
+  version: "0.2.0"
 ---
 
 # appsec-scan
@@ -36,6 +36,9 @@ Options:
   resolves Gradle or Maven dependencies as it does without the flag.
 - `--docker-build`: build each Dockerfile of the repository and scan the image. This runs the Dockerfile's `RUN`
   steps: use it only when the user asks for it.
+- `--parts LIST`: only these parts, comma-separated from `sast`, `sca`, `image` (`image` needs `--image` or
+  `--docker-build`). Pass it only when the user narrows the scan ("only SAST", "without the build"); by default scan
+  everything. Say which parts were not requested.
 
 A run can take minutes (the first one downloads opengrep and the trivy database). If your client can run commands in
 the background, run it in the background and wait for it to finish instead of polling. The last line of the output is
@@ -58,10 +61,11 @@ Conclusion first, then the tables.
 1. **SAST, new findings.** For each one open the code at `file:line` and decide: a real vulnerability or a false
    positive, with the argument from the code (where the data comes from, what sanitizes it). Existing findings: one
    line with the count. "Fixed in the branch": list them.
-2. **SCA.** Group by package: version, vulnerability IDs, "fixed in", and where it comes from (the report's path). Say
-   how it can be closed: upgrade the direct dependency, a version constraint or override in the build, or an upgrade of
-   the parent that brings it in. Rely on the report, the build files or a primary source for every version and ID;
-   do not name versions from memory.
+2. **SCA.** Start from the report's "What to change in the build": one row per direct dependency, new findings
+   first, with the version that fixes all CVEs of each package. For a transitive package the report names no
+   version of the parent: find it in the parent's release notes or dependency metadata, or offer a version
+   constraint or override in the build. Mention "first path found" when it applies. Rely on the report, the build
+   files or a primary source for every version and ID; do not name versions from memory.
 3. **Images.** Separate OS packages of the image (closed by a newer base image or a package upgrade in the
    Dockerfile) from application libraries (the same as SCA: refer to SCA, do not repeat).
 4. **Limitations**, one line: results depend on the rule set and the vulnerability database; other scanners may find
