@@ -6,6 +6,7 @@
 #  3. Control: the same without --no-update and without --rules: network attempts and semgrep.dev requests are
 #     visible, rules-* fail. The test therefore tells a quiet run from a noisy one.
 #  4. Files: after a run, new files exist only under the cache and the project's build/ or target/.
+#     APPSEC_ISOLATION_IGNORE=<ERE>: paths written meanwhile by other processes (a CI runner's own logs in $HOME).
 # A network attempt is a connect() to a non-loopback address, or to port 53 on any address (DNS: inside the
 # namespace the resolver may be a loopback address, so a lookup would otherwise go unseen).
 # Needs unshare (util-linux) with unprivileged user namespaces, strace, git, python3, curl, cosign, trivy.
@@ -87,7 +88,8 @@ mark="$WORK/mark"
 touch "$mark"
 sleep 1
 (cd "$WORK/go/repo" && bash "$SCAN" . --no-update --rules "$RULES") > "$WORK/files.out" 2>&1
-new="$( { find "$HOME" -newer "$mark" -type f 2>/dev/null | grep -v -e "^$CACHE/" -e "^$WORK/"
+new="$( { find "$HOME" -newer "$mark" -type f 2>/dev/null | grep -v -e "^$CACHE/" -e "^$WORK/" \
+            | { if [[ -n "${APPSEC_ISOLATION_IGNORE:-}" ]]; then grep -Ev -e "$APPSEC_ISOLATION_IGNORE"; else cat; fi; }
           find "$WORK/go/repo" -newer "$mark" -type f | grep -v -e '/build/' -e '/target/' -e '/\.git/'; } || true)"
 [[ -z "$new" ]] && ok "new files only in the cache" || bad "files outside the cache: $(printf '%s\n' "$new" | head -5)"
 # opengrep's own defaults (log in ~/.opengrep, unpacked runtime in ~/.cache/opengrep) must be redirected into the cache

@@ -188,7 +188,8 @@ jobs:
         run: |
           sudo apt-get install -y strace
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
-          bash tests/appsec-scan/run_isolation.sh
+          # the runner itself lives in $HOME and keeps writing its logs there during the scan
+          APPSEC_ISOLATION_IGNORE="^$HOME/actions-runner/" bash tests/appsec-scan/run_isolation.sh
       - name: Shell scripts
         if: runner.os == 'Linux'
         shell: bash
