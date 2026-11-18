@@ -218,8 +218,15 @@ def sast_key(x):
 
 # ------------------------------------------------------------------ SCA
 def load_gradle_paths(deps_dir):
-    """group:name:version -> path of origin (Gradle init script)."""
+    """group:name:version -> path of origin (Gradle init script); file:<project>/<jar> -> the declared file."""
     paths = {}
+    for tsv in sorted(glob.glob(os.path.join(deps_dir, "files", "*.tsv"))):
+        project = os.path.basename(tsv)[:-4]
+        with open(tsv, encoding="utf-8") as f:
+            for line in f:
+                if "\t" in line:
+                    name, declared = line.rstrip("\n").split("\t", 1)
+                    paths[f"file:{project}/{name}"] = f"[{project}] file dependency {declared}"
     for tsv in sorted(glob.glob(os.path.join(deps_dir, "paths", "*.tsv"))):
         project = os.path.basename(tsv)[:-4]
         with open(tsv, encoding="utf-8") as f:
@@ -294,7 +301,11 @@ def sca_findings(data, origin=None, jvm=False):
             item = found.get(key)
             if item is None:
                 if jvm:
-                    where = (origin or {}).get(f"{pkg}:{ver}", "") or "path not found"
+                    where = (origin or {}).get(f"{pkg}:{ver}", "")
+                    jar = re.search(r"(?:^|/)([^/]+)/files/([^/]+\.jar)$", norm_path(v.get("PkgPath", "") or res.get("Target", "")))
+                    if not where and jar:
+                        where = (origin or {}).get(f"file:{jar.group(1)}/{jar.group(2)}", "")
+                    where = where or "path not found"
                 else:
                     where = graph_origin(res, v.get("PkgID") or f"{pkg}@{ver}")
                 item = {
@@ -316,16 +327,21 @@ def sca_key(x):
     return (x["type"], x["target"], x["pkg"], x["id"])
 
 
+def unrecognized(inventory, data):
+    """Lock files of the inventory that trivy returned no result for (data: its output, None if it did not run)."""
+    if not inventory or data is None:
+        return set()
+    targets = {norm_path(r.get("Target", "")) for r in data.get("Results", []) or []}
+    return {norm_path(p) for p in inventory.get("lockfiles", [])} - targets
+
+
 def lock_limitations(inventory, data):
     """Lock files trivy did not recognize, unpinned requirements, unsupported lock formats."""
     notes = []
     if not inventory:
         return notes
-    targets = {norm_path(r.get("Target", "")) for r in (data or {}).get("Results", []) or []}
-    if data is not None:
-        for path in inventory.get("lockfiles", []):
-            if norm_path(path) not in targets:
-                notes.append(f"`{md(path)}`: trivy recognized no packages in it; its dependencies are not checked")
+    for path in sorted(unrecognized(inventory, data)):
+        notes.append(f"`{md(path)}`: trivy recognized no packages in it; its dependencies are not checked")
     for item in inventory.get("unpinned", []):
         notes.append(f"`{md(item['path'])}`: {item['lines']} requirement(s) without a pinned `==` version are not checked")
     for path in inventory.get("unsupported_locks", []):
@@ -370,6 +386,7 @@ def build(run):
     og_path = os.path.join(run, "opengrep.release")
     opengrep_rel = open(og_path, encoding="utf-8").read().strip() if os.path.isfile(og_path) else ""
     inv_head = load_json(os.path.join(run, "inv-head", "inventory.json")) or {}
+    inv_base = load_json(os.path.join(run, "inv-base", "inventory.json")) or {}
 
     w(f"# appsec-scan: {meta.get('NAME', '?')}")
     w("")
@@ -444,18 +461,35 @@ def build(run):
     for k, v in load_maven_tree(deps_head).items():
         origin.setdefault(k, v)
     native_head_data = load_json(os.path.join(run, "sca-native-head.json"))
+    native_base_data = load_json(os.path.join(run, "sca-native-base.json"))
     sca_parts = [
         ("sca", "JVM", sca_findings(load_json(os.path.join(run, "sca-head.json")), origin, jvm=True),
          sca_findings(load_json(os.path.join(run, "sca-base.json")), {}, jvm=True)),
         ("sca-native", "lock files", sca_findings(native_head_data),
-         sca_findings(load_json(os.path.join(run, "sca-native-base.json")))),
+         sca_findings(native_base_data)),
     ]
     all_sca, fixed_all, sca_new_total, sca_ran, sca_compared = [], [], 0, False, True
     notes = []
     for part, label, head, base in sca_parts:
         state = parts.get(part)
         why = parts.why_not_comparable(part)
-        fixed = mark(head, base, sca_key, why is None)
+        if part == "sca-native" and why is None:
+            # A lock file trivy did not read on one side says nothing there: no "new" or "fixed" from it
+            blind_head = unrecognized(inv_head, native_head_data)
+            blind_base = unrecognized(inv_base, native_base_data)
+            unsure = [x for x in head if x["target"] in blind_base]
+            fixed = mark([x for x in head if x["target"] not in blind_base],
+                         [b for b in base if b["target"] not in blind_head], sca_key, True)
+            for x in unsure:
+                x["status"] = UNKNOWN
+            if unsure:
+                sca_compared = False
+            for path in sorted(blind_base & {x["target"] for x in head}):
+                notes.append(f"`{md(path)}`: trivy recognized no packages in it in the base: its findings are `?`")
+            for path in sorted(blind_head & {b["target"] for b in base}):
+                notes.append(f"`{md(path)}`: trivy recognized no packages in it in HEAD: its base findings are not reported as fixed")
+        else:
+            fixed = mark(head, base, sca_key, why is None)
         if state[0] == "ok":
             sca_ran = True
         if state[0] != "skip" and why is not None:
@@ -512,8 +546,16 @@ def build(run):
 
     # Images: a full snapshot, there is no base image to compare with
     image_files = sorted(glob.glob(os.path.join(run, "docker-*.json")))
-    image_total = 0
+    image_total, image_ok = 0, 0
     for path in image_files:
+        part = os.path.basename(path)[:-len(".json")]
+        state = parts.get(part)
+        if state[0] != "ok":
+            # output of a failed scan (empty or cut off) is never shown as a clean image
+            w(f"## Image `{md(part[len('docker-'):])}`: not checked ({state[0]}: {md(state[1])})")
+            w("")
+            continue
+        image_ok += 1
         rows, title = image_findings(load_json(path))
         image_total += len(rows)
         w(f"## Image {md(title or os.path.basename(path))}: {len(rows)} vulnerabilit(ies) ({counts(rows)})")
@@ -543,7 +585,7 @@ def build(run):
         "sca_total": len(all_sca) if sca_ran else None,
         "sca_new": sca_new_total if (sca_ran and sca_compared) else None,
         "sca_counts": counts(all_sca) if sca_ran else "",
-        "images_total": image_total if image_files else None,
+        "images_total": image_total if image_ok else None,
         "problems": [f"{stage}: {comment}" for stage, st, comment in problems],
         "findings": {
             "sast": [{"status": x["status"], "rule": x["rule_full"], "file": x["file"], "line": x["line"], "func": x["func"]}

@@ -14,6 +14,7 @@ Expectation keys (all optional):
   sca_origin        [[package, text]]                      origin of the package contains text
   report_contains / report_absent / log_absent [text]
   files_absent      [name]                                 no file with this name under CASE_DIR or RUN_DIR
+  repo_absent       [path]                                 nothing at this path in the scanned repository (CASE_DIR/repo)
 Prints one line per failed check and exits 1 if any failed or if no check ran.
 """
 import collections
@@ -95,6 +96,13 @@ def main():
     for name in exp.get("files_absent", []):
         hits = [os.path.join(top, n) for root in roots for top, _, files in os.walk(root) for n in files if n == name]
         check(not hits, f"file {name} exists: {hits}")
+
+    for rel in exp.get("repo_absent", []):
+        if len(sys.argv) > 3:
+            path = os.path.join(sys.argv[3], "repo", rel)
+            check(not os.path.lexists(path), f"{rel} exists in the repository")
+        else:
+            check(False, "repo_absent needs CASE_DIR")
 
     for f in failures:
         print(f"  FAIL {f}")

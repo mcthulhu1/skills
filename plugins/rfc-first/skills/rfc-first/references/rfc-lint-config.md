@@ -27,7 +27,7 @@ By default the [structure check](structure-check.md) recognizes the English head
 | `proof_column` | Finds the proof column in the facts table and warns about rows with an empty proof (rule 8) |
 | `hedges` | Warns when a fact contains a word that marks a guess (rule 9) |
 
-- Every key is optional; each value is a non-empty list of strings. An unknown key or a wrong type fails the check (rule 4), so a typo is not silently ignored.
+- Every key is optional. `sections` and `fields` are objects with only the keys shown above; `proof_column`, `hedges` and every key inside `sections` and `fields` hold a non-empty list of non-empty strings. An unknown key or a wrong type fails the check (rule 4), so a typo is not silently ignored.
 - A word matches as a case-insensitive substring of the heading, cell or line, because Chinese, Japanese and Thai text has no spaces between words. Use whole words or phrases, not short stems that also occur elsewhere.
 - Fields accept both `:` and the full-width colon (U+FF1A).
 - The check reads `rfc-lint.json` from the directory of each RFC. A path the user names explicitly replaces it.

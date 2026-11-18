@@ -2,6 +2,17 @@
 
 All notable changes to the `appsec-scan` plugin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`. Releases are tagged `appsec-scan-vX.Y.Z`.
 
+## [0.1.4] - 2026-11-18
+
+### Fixed
+
+- A lock file trivy read on one side only no longer gives false results: a base finding in a lock file trivy recognized nothing in at HEAD is not reported as fixed, and a HEAD finding in a lock file it recognized nothing in at the base is `?`. Before, such findings were "fixed in the branch" or "new".
+- Gradle: jars declared as files (`files('libs/x.jar')`, `fileTree`) are scanned, with the declared file as their origin; a declared file that does not exist fails the SCA part. Before, they were left out without a note.
+- The base is resolved with its own build system: a branch that moves from Maven to Gradle no longer fails the base and turns every JVM finding into `?`.
+- A failed image scan is reported as not checked, never as an image with 0 vulnerabilities, and is not counted in the image total.
+- `--docker-build` with Gradle puts the Gradle project cache into the run directory too, not `.gradle/` in the repository.
+- Tests: the wrong-identity case of the opengrep install now differs from a good release only in the signing identity, so a loosened identity check fails it.
+
 ## [0.1.3] - 2026-11-18
 
 ### Fixed

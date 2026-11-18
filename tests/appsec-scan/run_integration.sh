@@ -15,7 +15,7 @@ trap 'chmod -R u+rwX "$WORK" 2>/dev/null; rm -rf "$WORK"' EXIT
 
 ALL=(npm python go go-nobase cargo formats gradle gradle-nobase gradle-unresolved maven samename-gradle samename-maven
      r2-og-exit r2-og-badjson r2-og-errors r2-trivy-base rules-union rules-missing r7-names r7-gradlew r7-lock r7-parent
-     r7-dockerfile docker-default docker-image docker-labels docker-missing docker-build)
+     r7-dockerfile docker-default docker-image docker-labels docker-missing docker-build gradle-files maven-to-gradle docker-gradle)
 CASES=("$@")
 [[ ${#CASES[@]} -eq 0 ]] && CASES=("${ALL[@]}")
 
@@ -88,13 +88,14 @@ run_case() {
         docker-image) fixture=docker; args=(--image alpine:3.20.0) ;;
         docker-missing) fixture=docker; args=(--image appsec-scan-fixture/does-not-exist:0) ;;
         docker-build) fixture=docker; args=(--docker-build) ;;
+        docker-gradle) fixture=docker-gradle; args=(--docker-build) ;;
         docker-labels) fixture=docker; args=(--image alpine:3.20.0 --image alpine-3.20.0) ;;
         r7-dockerfile) fixture=r7-dockerfile; args=(--docker-build) ;;
         rules-union|rules-missing) fixture=lang-removed; args=(--no-update); rules=() ;;
         *) fixture=$name ;;
     esac
     case "$fixture" in
-        gradle|gradle-unresolved|r7-gradlew|samename-gradle)
+        gradle|gradle-unresolved|gradle-files|maven-to-gradle|docker-gradle|r7-gradlew|samename-gradle)
             if ! command -v gradle >/dev/null 2>&1 && [[ $fixture != r7-gradlew ]]; then
                 [[ "${APPSEC_REQUIRE_JVM:-0}" == 1 ]] && { echo "FAIL $name: gradle not on PATH"; failed=$((failed + 1)); return; }
                 echo "SKIP $name: gradle not on PATH"; skipped=$((skipped + 1)); return
@@ -105,7 +106,11 @@ run_case() {
                 echo "SKIP $name: mvn not on PATH"; skipped=$((skipped + 1)); return
             fi ;;
     esac
-    if [[ $name == docker-build ]] && ! docker info >/dev/null 2>&1; then
+    if [[ $fixture == maven-to-gradle ]] && ! command -v mvn >/dev/null 2>&1; then
+        [[ "${APPSEC_REQUIRE_JVM:-0}" == 1 ]] && { echo "FAIL $name: mvn not on PATH"; failed=$((failed + 1)); return; }
+        echo "SKIP $name: mvn not on PATH"; skipped=$((skipped + 1)); return
+    fi
+    if [[ $name == docker-build || $name == docker-gradle ]] && ! docker info >/dev/null 2>&1; then
         [[ "${APPSEC_REQUIRE_DOCKER:-0}" == 1 ]] && { echo "FAIL $name: docker daemon unavailable"; failed=$((failed + 1)); return; }
         echo "SKIP $name: docker daemon unavailable"; skipped=$((skipped + 1)); return
     fi

@@ -2,6 +2,13 @@
 
 All notable changes to the `rfc-first` plugin (up to 1.1.5: the `mcthulhu1-skills` plugin). The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`. Releases from 1.2.0 are tagged `rfc-first-vX.Y.Z`.
 
+## [1.2.1] - 2026-11-18
+
+### Fixed
+
+- Structure check: in the validate mode without a request to edit, findings are reported with the fix they need and the RFC is not changed; before, the check told the agent to fix every FAIL before showing the RFC, which contradicted the validate mode.
+- Structure check rule 4 and the `rfc-lint.json` format: `sections` and `fields` are objects with fixed keys, the lists are their values and `proof_column`, `hedges`; before, rule 4 said every value is a list, which rejected a valid file.
+
 ## [1.2.0] - 2026-11-09
 
 ### Changed

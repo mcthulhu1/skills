@@ -105,6 +105,26 @@ case "$KIND" in
     gradle)
         init; gradle_build commons-collections:commons-collections:3.2.1 org.apache.commons:commons-text:1.9; java_src keep drop; commit base
         feature; gradle_build commons-collections:commons-collections:3.2.1 org.yaml:snakeyaml:1.33; java_src keep added; commit head ;;
+    gradle-files)
+        # HEAD adds a jar as a file dependency (files('libs/...')): it is on the runtime classpath and must be scanned
+        init; gradle_build commons-collections:commons-collections:3.2.1; java_src keep; commit base
+        feature; mkdir -p libs
+        curl -fsS --proto '=https' -m 60 -o libs/commons-text-1.9.jar \
+            https://repo1.maven.org/maven2/org/apache/commons/commons-text/1.9/commons-text-1.9.jar
+        gradle_build commons-collections:commons-collections:3.2.1
+        printf "\ndependencies {\n    implementation files('libs/commons-text-1.9.jar')\n}\n" >> build.gradle
+        commit head ;;
+    maven-to-gradle)
+        # the branch moves the build from Maven to Gradle: the base is resolved with Maven, HEAD with Gradle
+        init; maven_pom commons-collections:commons-collections:3.2.1 org.apache.commons:commons-text:1.9; java_src keep drop; commit base
+        feature; rm pom.xml; gradle_build commons-collections:commons-collections:3.2.1 org.yaml:snakeyaml:1.33; java_src keep added
+        commit head ;;
+    docker-gradle)
+        # a Gradle project with a Dockerfile that copies the build output: --docker-build runs assemble first
+        init; gradle_build commons-collections:commons-collections:3.2.1; java_src keep
+        printf 'FROM alpine:3.20.0\nCOPY build/libs /app/\n' > Dockerfile
+        printf '.gradle/\nbuild/\n' > .gitignore
+        commit docker-gradle ;;
     gradle-unresolved)
         init; gradle_build commons-collections:commons-collections:3.2.1; java_src keep; commit base
         feature; gradle_build commons-collections:commons-collections:3.2.1 com.example.appsec.fixture:does-not-exist:1.0; commit head ;;

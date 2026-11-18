@@ -491,15 +491,15 @@ trivy_scan() {  # trivy_scan SUBCOMMAND TARGET OUT: sets TRIVY_REASON on failure
     fi
     TRIVY_REASON="$(helper check-trivy "$3")" || return 1
 }
-jvm_part() {  # jvm_part SRC DEPS OUT INV PART
+jvm_part() {  # jvm_part SRC DEPS OUT INV PART BUILD: BUILD (gradle or maven) is the build of this snapshot
     local link
-    if link="$(blocked "$4" "$BUILD")"; then
-        status "$5" fail "external symlink $link: $BUILD is not run"
+    if link="$(blocked "$4" "$6")"; then
+        status "$5" fail "external symlink $link: $6 is not run"
     elif [[ $TRIVY_OK -eq 0 ]]; then
         status "$5" fail "trivy unavailable"
-    elif "${BUILD}_deps" "$1" "$2"; then
+    elif "${6}_deps" "$1" "$2"; then
         if trivy_scan rootfs "$2/jars" "$3"; then
-            status "$5" ok "$BUILD runtime classpath"
+            status "$5" ok "$6 runtime classpath"
         else
             status "$5" fail "$TRIVY_REASON"
         fi
@@ -525,9 +525,14 @@ native_part() {  # native_part INV-DIR OUT PART
 step "SCA"
 case "$BUILD" in
     gradle|maven)
-        jvm_part "$REPO" "$RUN/deps-head" "$RUN/sca-head.json" "$RUN/inv-head/inventory.json" sca
+        jvm_part "$REPO" "$RUN/deps-head" "$RUN/sca-head.json" "$RUN/inv-head/inventory.json" sca "$BUILD"
         if [[ -n "$BASE_SHA" ]]; then
-            jvm_part "$RUN/base-src" "$RUN/deps-base" "$RUN/sca-base.json" "$RUN/inv-base/inventory.json" sca-base
+            # the base is built with its own build system: a branch may move from Maven to Gradle
+            base_build="$(helper get "$RUN/inv-base/inventory.json" build)"
+            case "$base_build" in
+                gradle|maven) jvm_part "$RUN/base-src" "$RUN/deps-base" "$RUN/sca-base.json" "$RUN/inv-base/inventory.json" sca-base "$base_build" ;;
+                *) status sca-base skip "no Gradle or Maven build in the base" ;;
+            esac
         else
             status sca-base skip "no base"
         fi ;;
@@ -583,7 +588,7 @@ if [[ $DOCKER_BUILD -eq 1 ]]; then
     else
         # Dockerfiles usually copy build outputs: build them first, as a developer would before docker build
         case "$BUILD" in
-            gradle) build_tool "$REPO" gradle && (cd -- "$REPO" && run "${TOOL[@]}" -q --no-daemon assemble -x test) ;;
+            gradle) build_tool "$REPO" gradle && (cd -- "$REPO" && run "${TOOL[@]}" -q --no-daemon --project-cache-dir "$RUN/docker.gradle-cache" assemble -x test) ;;
             maven) build_tool "$REPO" maven && (cd -- "$REPO" && run "${TOOL[@]}" -B -q -DskipTests package) ;;
         esac
         for df in "${DOCKERFILES[@]}"; do
@@ -613,5 +618,5 @@ if ! python3 -I "$LIB/report.py" "$RUN" > "$RUN/report.md" 2>> "$LOG"; then
 fi
 # Large intermediate files are not kept: jar copies, staged lock files and the base sources
 rm -rf "$RUN/base-src" "$RUN/deps-head/jars" "$RUN/deps-base/jars" "$RUN/inv-head/locks" "$RUN/inv-base/locks" \
-    "$RUN/deps-head.gradle-cache" "$RUN/deps-base.gradle-cache"
+    "$RUN/deps-head.gradle-cache" "$RUN/deps-base.gradle-cache" "$RUN/docker.gradle-cache"
 echo "REPORT=$RUN/report.md"

@@ -1,0 +1,24 @@
+{
+ "status": {
+  "sca": "ok",
+  "sca-base": "ok"
+ },
+ "sca_ids": [
+  [
+   "new",
+   "org.apache.commons:commons-text",
+   "CVE-2022-42889"
+  ],
+  [
+   "existing",
+   "commons-collections:commons-collections",
+   "CVE-2015-7501"
+  ]
+ ],
+ "sca_origin": [
+  [
+   "org.apache.commons:commons-text",
+   "[root] file dependency libs/commons-text-1.9.jar"
+  ]
+ ]
+}

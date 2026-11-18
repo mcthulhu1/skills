@@ -1,0 +1,27 @@
+{
+ "status": {
+  "sca": "ok",
+  "sca-base": "ok",
+  "sca-native": "skip"
+ },
+ "status_contains": {
+  "sca": "gradle runtime classpath",
+  "sca-base": "maven runtime classpath"
+ },
+ "sca_packages": [
+  [
+   "new",
+   "jar",
+   "org.yaml:snakeyaml"
+  ],
+  [
+   "existing",
+   "jar",
+   "commons-collections:commons-collections"
+  ]
+ ],
+ "sca_fixed_packages": [
+  "org.apache.commons:commons-text",
+  "org.apache.commons:commons-lang3"
+ ]
+}

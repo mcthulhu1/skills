@@ -249,6 +249,58 @@ class ScaTest(unittest.TestCase):
         origin = {x["pkg"]: x["origin"] for x in summary["findings"]["sca"]}
         self.assertEqual(origin, {"deep": "deep@2.0.0 <- helper@1.0.0 (direct)", "top": "direct dependency"})
 
+    def inventory(self, where, lockfiles):
+        self.run.json(f"inv-{where}/inventory.json", {"lockfiles": lockfiles, "unpinned": [], "unsupported_locks": []})
+
+    def test_lock_file_unread_in_head_is_not_fixed(self):
+        # HEAD keeps the lock file, trivy reads nothing from it: the base CVE is unknown there, not fixed
+        self.inventory("head", ["package-lock.json"])
+        self.inventory("base", ["package-lock.json"])
+        npm = {"Target": "package-lock.json", "Type": "npm", "Vulnerabilities": [vuln("lodash", "4.17.15", "CVE-1")]}
+        self.run.json("sca-native-head.json", trivy())
+        self.run.json("sca-native-base.json", trivy(npm))
+        text, summary = self.run.build()
+        self.assertEqual(summary["findings"]["sca_fixed"], [])
+        self.assertNotIn("Fixed in the branch", text)
+        self.assertIn("in HEAD: its base findings are not reported as fixed", text)
+        self.assertIn("trivy recognized no packages in it; its dependencies are not checked", text)
+
+    def test_lock_file_unread_in_base_gives_unknown(self):
+        self.inventory("head", ["package-lock.json", "web/yarn.lock"])
+        self.inventory("base", ["package-lock.json", "web/yarn.lock"])
+        npm = {"Target": "package-lock.json", "Type": "npm", "Vulnerabilities": [vuln("lodash", "4.17.15", "CVE-1")]}
+        yarn = {"Target": "web/yarn.lock", "Type": "yarn", "Vulnerabilities": [vuln("minimist", "1.2.0", "CVE-2")]}
+        self.run.json("sca-native-head.json", trivy(npm, yarn))
+        self.run.json("sca-native-base.json", trivy(npm))
+        text, summary = self.run.build()
+        got = sorted((x["status"], x["target"]) for x in summary["findings"]["sca"])
+        self.assertEqual(got, [("?", "web/yarn.lock"), ("existing", "package-lock.json")])
+        self.assertIsNone(summary["sca_new"])
+        self.assertIn("`web/yarn.lock`: trivy recognized no packages in it in the base: its findings are `?`", text)
+
+    def test_new_lock_file_is_new(self):
+        # a lock file the base does not have is not "unread" in the base: its findings are new
+        self.inventory("head", ["package-lock.json"])
+        self.inventory("base", [])
+        npm = {"Target": "package-lock.json", "Type": "npm", "Vulnerabilities": [vuln("lodash", "4.17.15", "CVE-1")]}
+        self.run.json("sca-native-head.json", trivy(npm))
+        self.run.json("sca-native-base.json", trivy())
+        _, summary = self.run.build()
+        self.assertEqual([x["status"] for x in summary["findings"]["sca"]], ["new"])
+        self.assertEqual(summary["sca_new"], 1)
+
+    def test_file_dependency_origin(self):
+        head = {"Target": "jars/root/files/commons-text-1.9.jar", "Type": "jar",
+                "Vulnerabilities": [dict(vuln("org.apache.commons:commons-text", "1.9", "CVE-2022-42889"),
+                                         PkgPath="jars/root/files/commons-text-1.9.jar")]}
+        self.run.json("sca-head.json", trivy(head))
+        self.run.json("sca-base.json", trivy())
+        os.makedirs(os.path.join(self.run.dir, "deps-head", "files"))
+        with open(os.path.join(self.run.dir, "deps-head", "files", "root.tsv"), "w", encoding="utf-8") as f:
+            f.write("commons-text-1.9.jar\tlibs/commons-text-1.9.jar\n")
+        _, summary = self.run.build()
+        self.assertEqual(summary["findings"]["sca"][0]["origin"], "[root] file dependency libs/commons-text-1.9.jar")
+
     def test_no_graph_is_unknown(self):
         res = {"Target": "requirements.txt", "Type": "pip", "Packages": [{"ID": "a@1", "Name": "a"}],
                "Vulnerabilities": [vuln("a", "1", "CVE-7", "a@1")]}
@@ -256,6 +308,37 @@ class ScaTest(unittest.TestCase):
         self.run.json("sca-native-base.json", trivy())
         _, summary = self.run.build()
         self.assertTrue(summary["findings"]["sca"][0]["origin"].startswith("direct/transitive: unknown"))
+
+
+class ImageTest(unittest.TestCase):
+    def setUp(self):
+        self.run = Run()
+
+    def tearDown(self):
+        self.run.close()
+
+    def image(self, label, state, data):
+        self.run.statuses[f"docker-{label}"] = state
+        path = os.path.join(self.run.dir, f"docker-{label}.json")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(data if isinstance(data, str) else json.dumps(data))
+
+    def test_failed_scan_output_is_not_a_clean_image(self):
+        self.image("broken", "fail", "")
+        text, summary = self.run.build()
+        self.assertIn("## Image `broken`: not checked (fail: docker-broken fail reason)", text)
+        self.assertNotIn("## Image broken", text)
+        self.assertNotIn("Full snapshot", text)
+        self.assertIsNone(summary["images_total"])
+
+    def test_ok_image_is_counted_and_failed_one_is_not(self):
+        alpine = {"ArtifactName": "alpine:3.20.0", "Results": [
+            {"Target": "alpine", "Class": "os-pkgs", "Vulnerabilities": [vuln("busybox", "1.36", "CVE-3")]}]}
+        self.image("alpine", "ok", alpine)
+        self.image("broken", "fail", '{"Results": [')
+        text, summary = self.run.build()
+        self.assertIn("## Image alpine:3.20.0: 1 vulnerabilit(ies)", text)
+        self.assertEqual(summary["images_total"], 1)
 
 
 class FunctionTest(unittest.TestCase):

@@ -121,8 +121,8 @@ consistent "$X" "$NEW" && ok "tag and sha256 recorded" || bad "record does not m
 [[ "$(state "$run" sast)" == ok* ]] && ok "sast ran" || bad "sast: $(state "$run" sast)"
 
 echo "CASE wrong signing identity (the $OLD release served as $NEW)"
+# with the commit of $OLD too, so the workflow sha matches and only the identity (release-$OLD) is wrong
 X="$WORK/x-identity"; mkdir -p "$WORK/serve-identity/$NEW"; cp "$DL/$OLD/"* "$WORK/serve-identity/$NEW/"
-cp "$DL/$NEW/commit" "$WORK/serve-identity/$NEW/"
 run="$(scan "$X" "$WORK/serve-identity" "$NEW")"
 [[ "$(state "$run" tools-opengrep)" == fail*"did not verify"* ]] && ok "rejected" || bad "identity: $(state "$run" tools-opengrep)"
 [[ ! -e "$X/appsec-scan/bin/opengrep-$NEW" && ! -e "$X/appsec-scan/bin/opengrep.current" ]] && ok "nothing installed" || bad "a binary was installed"

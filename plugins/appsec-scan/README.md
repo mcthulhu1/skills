@@ -3,7 +3,7 @@
 **A local pre-PR security scan: new findings vs your base branch, with evidence.** Before you open a pull request, the agent runs open-source scanners on your repository, marks which findings your branch added, and reviews every new one in the code. It works with Claude Code, Codex, OpenCode, Copilot, Gemini CLI, Cursor and any other agent that supports the [Agent Skills](https://agentskills.io) format.
 
 - **SAST** with [opengrep](https://github.com/opengrep/opengrep) (`--taint-intrafile`): Java, Kotlin, Go, Rust, Python, JavaScript, TypeScript.
-- **SCA** with [trivy](https://trivy.dev): the real Gradle or Maven runtime classpath (the project is built), and lock files: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `requirements*.txt`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `go.mod`, `Cargo.lock`. Nothing is installed with npm or pip.
+- **SCA** with [trivy](https://trivy.dev): the real Gradle or Maven runtime classpath (the project is built), including jars declared as files (`files('libs/x.jar')`), and lock files: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `requirements*.txt`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `go.mod`, `Cargo.lock`. Nothing is installed with npm or pip.
 - **New vs existing**: the same scans run on the merge-base of your base branch (`git archive`, your working tree is not touched). Every SAST and SCA finding is `new`, `existing` or `?` when the comparison is not possible, and the report lists what the branch fixed.
 - **Where it comes from**: for Gradle and Maven, the path from your project to each vulnerable jar; for lock files, the path from the dependency graph when the lock file has one.
 - **Container images**, on request: `--image REF` scans an image you already have, `--docker-build` builds your Dockerfiles first. An image is a full snapshot, not compared with a base.
@@ -16,7 +16,7 @@ It complements Claude Code's built-in `/security-review` (a model reviewing the 
 Install adds one skill: instructions, a bash script and two Python helpers (standard library only). Nothing runs at install time. The agent runs the scan only when you ask for it, with the permissions you give the agent.
 
 - **Runs by itself**: `git` (read-only: `rev-parse`, `merge-base`, `archive`, `ls-files`), `opengrep`, `trivy`, `cosign` (to verify opengrep), `curl` (all downloads go through one function in `scan.sh`), `python3`.
-- **Runs from your project**: the Gradle or Maven build (`./gradlew` or `gradle`, `./mvnw` or `mvn`) to resolve the runtime classpath, for HEAD and for the base. The build scripts execute with your permissions. With `--docker-build`, also `docker build` with your Dockerfiles, which runs their `RUN` steps. **Scan only repositories whose build you trust.**
+- **Runs from your project**: the Gradle or Maven build (`./gradlew` or `gradle`, `./mvnw` or `mvn`) to resolve the runtime classpath, for HEAD and for the base, each with its own build system. The build scripts execute with your permissions. With `--docker-build`, also `docker build` with your Dockerfiles, which runs their `RUN` steps. **Scan only repositories whose build you trust.**
 - **Writes**: `~/.cache/appsec-scan` (or `$XDG_CACHE_HOME/appsec-scan`): opengrep (with its unpacked runtime and log, which it would otherwise put in `~/.cache/opengrep` and `~/.opengrep`), rules, the trivy database and one directory per run with the report. Your project's build writes as usual: `build/` or `target/`, and the Gradle or Maven caches in your home directory. Nothing in your source, build or lock files is changed; the Gradle project cache goes into the run directory, not `.gradle/`.
 - **Connects to**: `github.com` (the latest opengrep release, the commit of its tag over git, the release files), the Sigstore services used by `cosign verify-blob` (signature check), `semgrep.dev` (rules, unless `--rules`), the trivy database registries (`mirror.gcr.io`, `ghcr.io`), and the dependency repositories your build uses. `--image` may pull the image from its registry.
 - **Telemetry**: trivy runs with `--disable-telemetry --skip-version-check --offline-scan`, opengrep with `--disable-version-check`. With `--no-update` and the tools, rules and database already cached, a scan of a lock-file project makes no network connections (checked with `strace` in a network namespace, see [tests](../../tests/appsec-scan)). Your code is not sent anywhere by the skill.
@@ -122,10 +122,10 @@ The agent runs `scan.sh`, reads the report, opens the code of every new SAST fin
 You can also run the script yourself:
 
 ```bash
-bash ~/.claude/plugins/cache/mcthulhu1/appsec-scan/0.1.3/skills/appsec-scan/scan.sh . --help
+bash ~/.claude/plugins/cache/mcthulhu1/appsec-scan/0.1.4/skills/appsec-scan/scan.sh . --help
 ```
 
-That is the Claude Code path; Codex uses `~/.codex/plugins/cache/mcthulhu1/appsec-scan/0.1.3/`. The skills CLI puts the skill into the agent's skills directory in your project: `.agents/skills/appsec-scan/` for OpenCode and other agents that read `.agents/skills`, `.claude/skills/appsec-scan/` with `-a claude-code`. The script prints `REPORT=<path>/report.md` at the end.
+That is the Claude Code path; Codex uses `~/.codex/plugins/cache/mcthulhu1/appsec-scan/0.1.4/`. The skills CLI puts the skill into the agent's skills directory in your project: `.agents/skills/appsec-scan/` for OpenCode and other agents that read `.agents/skills`, `.claude/skills/appsec-scan/` with `-a claude-code`. The script prints `REPORT=<path>/report.md` at the end.
 
 ## Limitations
 

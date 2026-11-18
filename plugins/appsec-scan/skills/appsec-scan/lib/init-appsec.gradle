@@ -1,7 +1,9 @@
 // appsec-scan Gradle init script, applied with `-I`; it does not change the project.
 // appsecCopyDeps copies the external runtime dependencies of every Java project into -PappsecDepsDir
-// (jars/<project>/<group>/<module>/<version>/) and records:
+// (jars/<project>/<group>/<module>/<version>/, file dependencies such as files('libs/x.jar') into jars/<project>/files/)
+// and records:
 //   paths/<project>.tsv       group:name:version <TAB> first path from the project to the module ("who brought it in")
+//   files/<project>.tsv       jar name in jars/<project>/files <TAB> the file the build declares
 //   unresolved/<project>.txt  dependencies and artifacts that did not resolve; scan.sh fails the SCA part if any exist
 
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
@@ -26,24 +28,46 @@ allprojects { p ->
                 def jarsDir = new File(depsDirPath, "jars/${projectKey}")
                 jarsDir.mkdirs()
 
-                // lenient: one broken artifact does not hide the others; every failure is recorded below
+                // lenient: one broken artifact does not hide the others; every failure is recorded below.
+                // Other projects of the build are the repository's own code; modules and file dependencies are scanned.
                 def view = cfg.incoming.artifactView {
                     lenient(true)
-                    componentFilter { it instanceof ModuleComponentIdentifier }
+                    componentFilter { !(it instanceof ProjectComponentIdentifier) }
                 }
                 def artifacts = view.artifacts
-                // one directory per component: g1:lib:1.0 and g2:lib:1.0 both ship lib-1.0.jar, and both are scanned
+                def failures = []
+                def files = [:]
                 artifacts.each { a ->
                     def c = a.id.componentIdentifier
-                    def dir = new File(jarsDir, "${c.group}/${c.module}/${c.version}")
-                    dir.mkdirs()
-                    def target = new File(dir, a.file.name)
-                    if (!target.exists()) {
-                        target.bytes = a.file.bytes
+                    if (c instanceof ModuleComponentIdentifier) {
+                        // one directory per component: g1:lib:1.0 and g2:lib:1.0 both ship lib-1.0.jar, and both are scanned
+                        def dir = new File(jarsDir, "${c.group}/${c.module}/${c.version}")
+                        dir.mkdirs()
+                        def target = new File(dir, a.file.name)
+                        if (!target.exists()) {
+                            target.bytes = a.file.bytes
+                        }
+                    } else if (a.file.isFile() && a.file.name.endsWith('.jar')) {
+                        // a file dependency: two declared files with the same name get name-2.jar, name-3.jar...
+                        def dir = new File(jarsDir, 'files')
+                        dir.mkdirs()
+                        def stem = a.file.name[0..-5]
+                        def name = a.file.name
+                        for (int n = 2; files.containsKey(name); n++) {
+                            name = "${stem}-${n}.jar".toString()
+                        }
+                        new File(dir, name).bytes = a.file.bytes
+                        def declared = a.file.canonicalPath
+                        def projectDir = p.projectDir.canonicalPath + File.separator
+                        files[name] = declared.startsWith(projectDir) ? declared.substring(projectDir.length()) : declared
+                    } else if (!a.file.exists()) {
+                        failures << "file dependency ${a.file.name}: the file does not exist".toString()
                     }
                 }
+                def filesFile = new File(depsDirPath, "files/${projectKey}.tsv")
+                filesFile.parentFile.mkdirs()
+                filesFile.text = files.collect { k, v -> "${k}\t${v}\n" }.join('')
 
-                def failures = []
                 artifacts.failures.each { failures << (it.message ?: it.class.name).readLines().first() }
                 def root = cfg.incoming.resolutionResult.root
                 cfg.incoming.resolutionResult.allDependencies.each { d ->

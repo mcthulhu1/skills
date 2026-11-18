@@ -1,0 +1,11 @@
+{
+ "status": {
+  "docker-dockerfile": "ok"
+ },
+ "report_contains": [
+  "Full snapshot of the image"
+ ],
+ "repo_absent": [
+  ".gradle"
+ ]
+}
