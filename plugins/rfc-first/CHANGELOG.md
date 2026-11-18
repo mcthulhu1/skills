@@ -2,6 +2,12 @@
 
 All notable changes to the `rfc-first` plugin (up to 1.1.5: the `mcthulhu1-skills` plugin). The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`. Releases from 1.2.0 are tagged `rfc-first-vX.Y.Z`.
 
+## [1.3.1] - 2026-11-18
+
+### Fixed
+
+- `SKILL.md` front matter: removed `metadata.opencode/slash`. Its key has a `/`, so the Claude plugin directory could not read the front matter and refused the plugin (`LOCAL_CODE_NOT_READ`); OpenCode 2.3.0 does not read the key.
+
 ## [1.3.0] - 2026-11-18
 
 ### Added
