@@ -104,7 +104,7 @@ npx skills@latest add mcthulhu1/skills --skill appsec-scan -a opencode   # or cu
 | skills CLI | latest on 2026-11-09 | `npx skills add <clone> --skill appsec-scan -a opencode` | Verified 2026-11-09 on Linux; the installed `scan.sh` scanned a fixture as expected |
 | OpenCode | 1.19.5 | Loading the skill placed by the skills CLI | Verified 2026-11-09 on Linux: `opencode debug skill` lists `appsec-scan` |
 | GitHub Copilot | — | `copilot plugin marketplace add` | Documented |
-| Install from GitHub | as above | `mcthulhu1/skills` instead of a local clone | Documented |
+| Install from GitHub | Claude Code 2.1.327; skills CLI | `mcthulhu1/skills` instead of a local clone | Verified 2026-11-18 on macOS for Claude Code (both routes: the installed files match the release, `scan.sh` scanned a fixture) and the skills CLI with `-a claude-code` (the skill in `.claude/skills/appsec-scan/`); other clients documented |
 
 Installing runs nothing and needs none of the scanners: the checks above ran without trivy, cosign or opengrep on `PATH`, and no cache was created until the first scan.
 
@@ -122,10 +122,10 @@ The agent runs `scan.sh`, reads the report, opens the code of every new SAST fin
 You can also run the script yourself:
 
 ```bash
-bash ~/.claude/plugins/cache/mcthulhu1/appsec-scan/0.1.2/skills/appsec-scan/scan.sh . --help
+bash ~/.claude/plugins/cache/mcthulhu1/appsec-scan/0.1.3/skills/appsec-scan/scan.sh . --help
 ```
 
-That is the Claude Code path; Codex uses `~/.codex/plugins/cache/mcthulhu1/appsec-scan/0.1.2/`, the skills CLI `.agents/skills/appsec-scan/` in your project. The script prints `REPORT=<path>/report.md` at the end.
+That is the Claude Code path; Codex uses `~/.codex/plugins/cache/mcthulhu1/appsec-scan/0.1.3/`. The skills CLI puts the skill into the agent's skills directory in your project: `.agents/skills/appsec-scan/` for OpenCode and other agents that read `.agents/skills`, `.claude/skills/appsec-scan/` with `-a claude-code`. The script prints `REPORT=<path>/report.md` at the end.
 
 ## Limitations
 

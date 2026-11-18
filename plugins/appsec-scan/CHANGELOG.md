@@ -2,6 +2,16 @@
 
 All notable changes to the `appsec-scan` plugin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`. Releases are tagged `appsec-scan-vX.Y.Z`.
 
+## [0.1.3] - 2026-11-18
+
+### Fixed
+
+- README: with `-a claude-code` the skills CLI installs the skill into `.claude/skills/appsec-scan/`, not `.agents/skills/appsec-scan/`; the path now depends on the agent.
+
+### Changed
+
+- README: installing from GitHub is verified for Claude Code (both routes) and the skills CLI with `-a claude-code`.
+
 ## [0.1.2] - 2026-11-18
 
 ### Fixed
