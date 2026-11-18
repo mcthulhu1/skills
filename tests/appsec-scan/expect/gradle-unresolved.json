@@ -3,10 +3,11 @@
   "sca": "fail"
  },
  "status_contains": {
-  "sca": "unresolved dependencies: com.example.appsec.fixture:does-not-exist:1.0"
+  "sca": "com.example.appsec.fixture:does-not-exist:1.0: Could not find"
  },
  "report_contains": [
-  "comparison unavailable: HEAD fail"
+  "comparison unavailable: HEAD fail",
+  "unresolved dependencies: "
  ],
  "report_absent": [
   "Fixed in the branch:"
