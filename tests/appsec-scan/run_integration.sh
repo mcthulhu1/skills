@@ -139,7 +139,18 @@ run_case() {
         passed=$((passed + 1))
     else
         failed=$((failed + 1))
+        diagnose "$run"
     fi
+}
+
+diagnosed=0
+diagnose() {  # the tool statuses and network steps of the first failed case, so a CI log shows why
+    [[ $diagnosed -eq 1 ]] && return
+    diagnosed=1
+    echo "  -- tool statuses:"
+    grep -E '^(tools|rules)-' "$1/status.tsv" | sed 's/^/     /'
+    echo "  -- network steps (scan.log):"
+    grep -E '^fetch |^curl: ' "$1/scan.log" | sed 's/^/     /'
 }
 
 for c in "${CASES[@]}"; do run_case "$c"; done
