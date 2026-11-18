@@ -89,6 +89,23 @@ run_to() {  # run_to FILE CMD...: output to FILE (for reason) and to the log
 }
 # Every download of the skill itself goes through this function.
 fetch()  { log "fetch $1"; curl -fsSL --proto '=https' --tlsv1.2 -m "$3" -o "$2" "$1" 2>> "$LOG"; }
+# The latest opengrep release and the commit of its tag come from github.com and the git protocol, not the REST API:
+# its limit without a token (60 requests an hour per IP) runs out behind a shared IP, CI runners included.
+latest_tag() {  # the tag in the redirect of the releases/latest page
+    local url=https://github.com/opengrep/opengrep/releases/latest loc
+    log "fetch $url (redirect)"
+    loc="$(curl -fsS --proto '=https' --tlsv1.2 -m 30 -o /dev/null -w '%{redirect_url}' "$url" 2>> "$LOG")" || return 1
+    [[ "$loc" =~ ^https://github\.com/opengrep/opengrep/releases/tag/([^/?#]+)$ ]] || { log "unexpected redirect: $loc"; return 1; }
+    printf '%s' "${BASH_REMATCH[1]}"
+}
+tag_commit() {  # tag_commit TAG: the commit the tag points to (peeled for an annotated tag)
+    local out
+    log "git ls-remote https://github.com/opengrep/opengrep refs/tags/$1"
+    out="$(GIT_TERMINAL_PROMPT=0 git -c http.lowSpeedLimit=1 -c http.lowSpeedTime=30 \
+        ls-remote https://github.com/opengrep/opengrep "refs/tags/$1" "refs/tags/$1^{}" 2>> "$LOG")" || return 1
+    awk -v t="refs/tags/$1" '$2 == t "^{}" {peeled = $1} $2 == t {plain = $1}
+        END {print (peeled != "" ? peeled : plain)}' <<< "$out"
+}
 sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
 is_darwin() { [[ "$(uname -s)" == "Darwin" ]]; }
 hint() {
@@ -239,8 +256,7 @@ update_opengrep() {
     fi
     tmp="$(mktemp -d "$CACHE/dl.XXXXXX")" || { status tools-opengrep fail "cannot create a download directory"; return; }
     TMP_DIRS+=("$tmp")
-    if ! fetch https://api.github.com/repos/opengrep/opengrep/releases/latest "$tmp/latest.json" 30 \
-            || ! tag="$(helper get "$tmp/latest.json" tag_name)"; then
+    if ! tag="$(latest_tag)"; then
         status tools-opengrep fail "cannot get the latest opengrep release$(cached_note)"
         return
     fi
@@ -259,8 +275,7 @@ update_opengrep() {
     fi
     asset="$(platform_asset "$tag")"
     # The commit the tag points to: the signature must come from a workflow run on exactly that commit.
-    if ! fetch "https://api.github.com/repos/opengrep/opengrep/commits/$tag" "$tmp/commit.json" 30 \
-            || ! commit="$(helper get "$tmp/commit.json" sha)" || [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]]; then
+    if ! commit="$(tag_commit "$tag")" || [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]]; then
         release_lock
         status tools-opengrep fail "cannot resolve the commit of $tag$(cached_note)"
         return

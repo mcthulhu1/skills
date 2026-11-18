@@ -150,7 +150,7 @@ diagnose() {  # the tool statuses and network steps of the first failed case, so
     echo "  -- tool statuses:"
     grep -E '^(tools|rules)-' "$1/status.tsv" | sed 's/^/     /'
     echo "  -- network steps (scan.log):"
-    grep -E '^fetch |^curl: ' "$1/scan.log" | sed 's/^/     /'
+    grep -E '^fetch |^curl: |^git ls-remote |^fatal: |^unexpected redirect' "$1/scan.log" | sed 's/^/     /'
 }
 
 for c in "${CASES[@]}"; do run_case "$c"; done

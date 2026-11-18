@@ -18,7 +18,7 @@ Install adds one skill: instructions, a bash script and two Python helpers (stan
 - **Runs by itself**: `git` (read-only: `rev-parse`, `merge-base`, `archive`, `ls-files`), `opengrep`, `trivy`, `cosign` (to verify opengrep), `curl` (all downloads go through one function in `scan.sh`), `python3`.
 - **Runs from your project**: the Gradle or Maven build (`./gradlew` or `gradle`, `./mvnw` or `mvn`) to resolve the runtime classpath, for HEAD and for the base. The build scripts execute with your permissions. With `--docker-build`, also `docker build` with your Dockerfiles, which runs their `RUN` steps. **Scan only repositories whose build you trust.**
 - **Writes**: `~/.cache/appsec-scan` (or `$XDG_CACHE_HOME/appsec-scan`): opengrep (with its unpacked runtime and log, which it would otherwise put in `~/.cache/opengrep` and `~/.opengrep`), rules, the trivy database and one directory per run with the report. Your project's build writes as usual: `build/` or `target/`, and the Gradle or Maven caches in your home directory. Nothing in your source, build or lock files is changed; the Gradle project cache goes into the run directory, not `.gradle/`.
-- **Connects to**: `api.github.com` and `github.com` (the latest opengrep release), the Sigstore services used by `cosign verify-blob` (signature check), `semgrep.dev` (rules, unless `--rules`), the trivy database registries (`mirror.gcr.io`, `ghcr.io`), and the dependency repositories your build uses. `--image` may pull the image from its registry.
+- **Connects to**: `github.com` (the latest opengrep release, the commit of its tag over git, the release files), the Sigstore services used by `cosign verify-blob` (signature check), `semgrep.dev` (rules, unless `--rules`), the trivy database registries (`mirror.gcr.io`, `ghcr.io`), and the dependency repositories your build uses. `--image` may pull the image from its registry.
 - **Telemetry**: trivy runs with `--disable-telemetry --skip-version-check --offline-scan`, opengrep with `--disable-version-check`. With `--no-update` and the tools, rules and database already cached, a scan of a lock-file project makes no network connections (checked with `strace` in a network namespace, see [tests](../../tests/appsec-scan)). Your code is not sent anywhere by the skill.
 
 ## Requirements
@@ -122,10 +122,10 @@ The agent runs `scan.sh`, reads the report, opens the code of every new SAST fin
 You can also run the script yourself:
 
 ```bash
-bash ~/.claude/plugins/cache/mcthulhu1/appsec-scan/0.1.1/skills/appsec-scan/scan.sh . --help
+bash ~/.claude/plugins/cache/mcthulhu1/appsec-scan/0.1.2/skills/appsec-scan/scan.sh . --help
 ```
 
-That is the Claude Code path; Codex uses `~/.codex/plugins/cache/mcthulhu1/appsec-scan/0.1.1/`, the skills CLI `.agents/skills/appsec-scan/` in your project. The script prints `REPORT=<path>/report.md` at the end.
+That is the Claude Code path; Codex uses `~/.codex/plugins/cache/mcthulhu1/appsec-scan/0.1.2/`, the skills CLI `.agents/skills/appsec-scan/` in your project. The script prints `REPORT=<path>/report.md` at the end.
 
 ## Limitations
 

@@ -8,7 +8,7 @@ description: >-
   in the code. Use only when the user explicitly asks for a security scan: it runs the project's build scripts and uses
   the network.
 metadata:
-  version: "0.1.1"
+  version: "0.1.2"
 ---
 
 # appsec-scan

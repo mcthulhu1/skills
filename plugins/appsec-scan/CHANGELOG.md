@@ -2,6 +2,12 @@
 
 All notable changes to the `appsec-scan` plugin. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/) and match `version` in `.claude-plugin/plugin.json`. Releases are tagged `appsec-scan-vX.Y.Z`.
 
+## [0.1.2] - 2026-11-18
+
+### Fixed
+
+- opengrep no longer fails to install behind a shared IP (CI runners, corporate NAT): the latest release tag now comes from the redirect of `github.com/opengrep/opengrep/releases/latest` and the commit of the tag from `git ls-remote` (peeled for an annotated tag), so no request goes to the GitHub REST API, whose limit without a token is 60 requests an hour per IP. The signature check is unchanged.
+
 ## [0.1.1] - 2026-11-17
 
 ### Fixed
